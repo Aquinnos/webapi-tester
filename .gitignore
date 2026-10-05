@@ -1,0 +1,25 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# Zmienne środowiskowe
+.env
+.env.local
+.env.*.local
+
+# Logi
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Vite
+*.local
+
+# Vitest
+.vitest-cache/

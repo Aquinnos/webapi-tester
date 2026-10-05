@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: webapi-tester-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: webapi_tester
+      POSTGRES_USER: webapi
+      POSTGRES_PASSWORD: webapi
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U webapi -d webapi_tester']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+    name: webapi-tester-pgdata
