@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { HttpMethod, ProxyForwardRequestDto } from '@webapi-tester/shared';
 import { proxyForward } from '../lib/proxy-fetch.js';
 import { ApiError } from '../lib/api.js';
@@ -15,8 +15,19 @@ const METHODS: HttpMethod[] = [
   'HEAD',
 ];
 
+export interface RequestSeed {
+  name: string;
+  method: HttpMethod;
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
 interface RequestBuilderProps {
   accessToken: string;
+  seed: RequestSeed | null;
+  onSent?: () => void;
+  onSeedApplied?: () => void;
 }
 
 interface HeaderRow {
@@ -24,28 +35,62 @@ interface HeaderRow {
   value: string;
 }
 
-export function RequestBuilder({ accessToken }: RequestBuilderProps) {
-  const [method, setMethod] = useState<HttpMethod>('GET');
-  const [url, setUrl] = useState('https://httpbin.org/get');
-  const [headers, setHeaders] = useState<HeaderRow[]>([
-    { key: 'Accept', value: 'application/json' },
-  ]);
-  const [body, setBody] = useState('');
+const DEFAULT_SEED: RequestSeed = {
+  name: 'Untitled',
+  method: 'GET',
+  url: 'https://httpbin.org/get',
+  headers: { Accept: 'application/json' },
+  body: '',
+};
+
+function headersToRows(headers: Record<string, string>): HeaderRow[] {
+  const entries = Object.entries(headers);
+  if (entries.length === 0) return [{ key: '', value: '' }];
+  return entries.map(([key, value]) => ({ key, value }));
+}
+
+function rowsToHeaders(rows: HeaderRow[]): Record<string, string> {
+  const obj: Record<string, string> = {};
+  for (const { key, value } of rows) {
+    const k = key.trim();
+    if (k) obj[k] = value;
+  }
+  return obj;
+}
+
+export function RequestBuilder({
+  accessToken,
+  seed,
+  onSent,
+  onSeedApplied,
+}: RequestBuilderProps) {
+  const [method, setMethod] = useState<HttpMethod>(DEFAULT_SEED.method);
+  const [url, setUrl] = useState(DEFAULT_SEED.url);
+  const [headers, setHeaders] = useState<HeaderRow[]>(
+    headersToRows(DEFAULT_SEED.headers),
+  );
+  const [body, setBody] = useState(DEFAULT_SEED.body);
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!seed) return;
+    setMethod(seed.method);
+    setUrl(seed.url);
+    setHeaders(headersToRows(seed.headers));
+    setBody(seed.body);
+    setResponse(null);
+    setError(null);
+    onSeedApplied?.();
+  }, [seed]);
 
   async function handleSend() {
     setError(null);
     setResponse(null);
     setLoading(true);
 
-    const headerObj: Record<string, string> = {};
-    for (const { key, value } of headers) {
-      const k = key.trim();
-      if (k) headerObj[k] = value;
-    }
-
+    const headerObj = rowsToHeaders(headers);
     const dto: ProxyForwardRequestDto = {
       method,
       url,
@@ -57,6 +102,7 @@ export function RequestBuilder({ accessToken }: RequestBuilderProps) {
     try {
       const res = await proxyForward(dto, accessToken);
       setResponse(res);
+      onSent?.();
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.details ? `${err.message}: ${err.details}` : err.message);
