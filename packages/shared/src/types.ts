@@ -1,7 +1,14 @@
 // Współdzielone typy DTO używane przez apps/web, apps/server i apps/proxy.
 // Definicje odpowiadają wymaganiom WF1-WF7 z rozdziału 3 pracy inżynierskiej.
 
-export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS' | 'HEAD';
+export type HttpMethod =
+  | 'GET'
+  | 'POST'
+  | 'PUT'
+  | 'PATCH'
+  | 'DELETE'
+  | 'OPTIONS'
+  | 'HEAD';
 
 // ============ Autentykacja (WF1) ============
 
@@ -148,11 +155,17 @@ export interface OpenApiImportErrorDto {
   details: string;
 }
 
-export type OpenApiImportResultDto = OpenApiImportSuccessDto | OpenApiImportErrorDto;
+export type OpenApiImportResultDto =
+  | OpenApiImportSuccessDto
+  | OpenApiImportErrorDto;
 
 // ============ Błędy generyczne ============
 
 export interface ApiErrorDto {
   error: string;
   details?: string;
+}
+
+export interface CollectionWithRequestsDto extends CollectionDto {
+  requests: RequestDto[];
 }
