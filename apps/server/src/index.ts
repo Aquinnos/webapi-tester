@@ -6,6 +6,7 @@ import { errorHandler } from './middleware/error.js';
 import { requestsRouter } from './routes/requests.js';
 import { collectionsRouter } from './routes/collections.js';
 import { historyRouter } from './routes/history.js';
+import { openapiRouter } from './routes/openapi.js';
 
 function build(): Express {
   const app = express();
@@ -14,6 +15,7 @@ function build(): Express {
   app.use('/auth', authRouter);
   app.use(requestsRouter);
   app.use(collectionsRouter);
+  app.use(openapiRouter);
   app.use(historyRouter);
   app.use(errorHandler);
 

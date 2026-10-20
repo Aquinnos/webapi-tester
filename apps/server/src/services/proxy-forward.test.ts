@@ -117,12 +117,27 @@ beforeAll(async () => {
     it('throws on network errors', async () => {
       await expect(
         forwardRequest({
-          method: 'GET', 
+          method: 'GET',
           url: 'http://127.0.0.1:1',
           headers: {},
           body: '',
           bodyEncoding: 'utf-8',
         }),
       ).rejects.toThrow();
+    });
+
+    it('combines baseUrl with relative path', async () => {
+      const result = await forwardRequest({
+        method: 'GET',
+        url: '/json',
+        baseUrl,
+        headers: {},
+        body: '',
+        bodyEncoding: 'utf-8',
+      });
+      expect(result.status).toBe(200);
+      expect(Buffer.from(result.bodyBase64, 'base64').toString('utf-8')).toBe(
+        '{"hello":"world"}',
+      );
     });
   });

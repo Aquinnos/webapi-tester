@@ -12,13 +12,14 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@apidevtools/swagger-parser": "^13",
     "@webapi-tester/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
+    "dotenv": "^18.0.8",
     "express": "^4.21.1",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
-    "swagger-parser": "^10.0.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {

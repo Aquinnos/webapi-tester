@@ -209,7 +209,7 @@ describe('POST /collections/:id/requests', () => {
     expect(res.body.headers).toEqual({ 'X-Custom': 'value' });
   });
 
-  it('validates URL', async () => {
+  it('accepts a non-empty URL placeholder (validation at execution time)', async () => {
     const { id } = await createCollection('Test', aliceToken);
     const res = await request(app)
       .post(`/collections/${id}/requests`)
@@ -218,6 +218,21 @@ describe('POST /collections/:id/requests', () => {
         name: 'Bad',
         method: 'GET',
         url: 'not-a-url',
+        headers: {},
+        body: '',
+      });
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects empty URL', async () => {
+    const { id } = await createCollection('Test', aliceToken);
+    const res = await request(app)
+      .post(`/collections/${id}/requests`)
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        name: 'Bad',
+        method: 'GET',
+        url: '',
         headers: {},
         body: '',
       });

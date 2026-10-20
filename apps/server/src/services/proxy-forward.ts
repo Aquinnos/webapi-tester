@@ -38,8 +38,11 @@ export async function forwardRequest(
     }
   }
 
+  const targetUrl =
+    req.url.startsWith('/') && req.baseUrl ? req.baseUrl + req.url : req.url;
+
   try {
-    const response = await fetch(req.url, {
+    const response = await fetch(targetUrl, {
       method: req.method,
       headers: req.headers,
       body,

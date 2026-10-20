@@ -54,6 +54,7 @@ export interface ProxyForwardRequestDto {
   headers: Record<string, string>;
   body: string;
   bodyEncoding: BodyEncoding;
+  baseUrl?: string;
 }
 
 export interface ProxyResponseDto {
@@ -82,6 +83,7 @@ export interface RequestDto {
   url: string;
   headers: Record<string, string>;
   body: string;
+  baseUrl?: string;
 }
 
 export interface CreateCollectionDto {
@@ -98,6 +100,7 @@ export interface CreateRequestDto {
   url: string;
   headers?: Record<string, string>;
   body?: string;
+  baseUrl?: string;
 }
 
 export interface UpdateRequestDto {
@@ -106,6 +109,7 @@ export interface UpdateRequestDto {
   url?: string;
   headers?: Record<string, string>;
   body?: string;
+  baseUrl?: string;
 }
 
 // ============ Historia (WF6) ============
@@ -142,6 +146,7 @@ export interface GeneratedRequestDto {
   body: string;
   bodyEncoding: BodyEncoding;
   description: string;
+  baseUrl?: string;
 }
 
 export interface OpenApiImportSuccessDto {

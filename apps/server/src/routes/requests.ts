@@ -13,10 +13,11 @@ export const requestsRouter: ReturnType<typeof Router> = Router();
 
 const forwardSchema = z.object({
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD']),
-  url: z.string().url(),
+  url: z.string().min(1).max(2048),
   headers: z.record(z.string(), z.string()).default({}),
   body: z.string().default(''),
   bodyEncoding: z.enum(['utf-8', 'base64']).default('utf-8'),
+  baseUrl: z.string().optional(),
 });
 
 const MAX_HISTORY_BODY = 50_000;

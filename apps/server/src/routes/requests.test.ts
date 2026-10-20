@@ -65,13 +65,27 @@ describe('POST /proxy/forward', () => {
     expect(res.status).toBe(401);
   });
 
-  it('validates URL', async () => {
+  it('accepts any non-empty URL (validation at execution time)', async () => {
     const res = await request(app)
       .post('/proxy/forward')
       .set('Authorization', `Bearer ${accessToken}`)
       .send({
         method: 'GET',
         url: 'not-a-url',
+        headers: {},
+        body: '',
+        bodyEncoding: 'utf-8',
+      });
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects empty URL', async () => {
+    const res = await request(app)
+      .post('/proxy/forward')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({
+        method: 'GET',
+        url: '',
         headers: {},
         body: '',
         bodyEncoding: 'utf-8',
@@ -94,6 +108,7 @@ describe('POST /proxy/forward', () => {
   });
 
   it('forwards and returns ProxyResponseDto', async () => {
+    fetchMock.mockClear();
     const res = await request(app)
       .post('/proxy/forward')
       .set('Authorization', `Bearer ${accessToken}`)

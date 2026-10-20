@@ -22,10 +22,11 @@ const collectionSchema = z.object({
 const savedRequestSchema = z.object({
   name: z.string().min(1).max(255),
   method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD']),
-  url: z.string().url(),
+  url: z.string().min(1).max(2048),
   headers: z.record(z.string(), z.string()).default({}),
   body: z.string().default(''),
   bodyEncoding: z.enum(['utf-8', 'base64']).default('utf-8'),
+  baseUrl: z.string().min(1).max(2048).optional(),
 });
 
 interface CollectionRow {
@@ -41,6 +42,7 @@ interface RequestRow {
   name: string;
   method: string;
   url: string;
+  base_url: string | null;
   headers: Record<string, string>;
   body: string;
   created_at: Date;
@@ -64,7 +66,7 @@ function collectionFromRow(row: CollectionRow): CollectionDto {
 }
 
 function requestFromRow(row: RequestRow): RequestDto {
-  return {
+  const dto: RequestDto = {
     id: String(row.id),
     collectionId: String(row.collection_id),
     name: row.name,
@@ -73,6 +75,8 @@ function requestFromRow(row: RequestRow): RequestDto {
     headers: row.headers,
     body: row.body,
   };
+  if (row.base_url) dto.baseUrl = row.base_url;
+  return dto;
 }
 
 collectionsRouter.get('/collections', requireAuth, async (req, res, next) => {
@@ -129,7 +133,7 @@ collectionsRouter.get(
       if (!collection) throw new HttpError(404, 'Collection not found');
 
       const reqResult = await pool.query<RequestRow>(
-        `SELECT id, collection_id, name, method, url, headers, body, created_at
+        `SELECT id, collection_id, name, method, url, base_url, headers, body, created_at
          FROM requests
          WHERE collection_id = $1
          ORDER BY created_at ASC`,
@@ -211,10 +215,18 @@ collectionsRouter.post(
         throw new HttpError(404, 'Collection not found');
 
       const result = await pool.query<RequestRow>(
-        `INSERT INTO requests (collection_id, name, method, url, headers, body)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, collection_id, name, method, url, headers, body, created_at`,
-        [id, dto.name, dto.method, dto.url, dto.headers ?? {}, dto.body ?? ''],
+        `INSERT INTO requests (collection_id, name, method, url, base_url, headers, body)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING id, collection_id, name, method, url, base_url, headers, body, created_at`,
+        [
+          id,
+          dto.name,
+          dto.method,
+          dto.url,
+          dto.baseUrl ?? null,
+          dto.headers ?? {},
+          dto.body ?? '',
+        ],
       );
       const row = result.rows[0];
       if (!row) throw new HttpError(500, 'Insert returned no row');
@@ -236,18 +248,19 @@ collectionsRouter.patch(
       const userId = Number(req.user!.id);
 
       const result = await pool.query<RequestRow>(
-        `UPDATE requests SET name = $1, method = $2, url = $3, headers = $4, body = $5
+        `UPDATE requests SET name = $1, method = $2, url = $3, base_url = $4, headers = $5, body = $6
          FROM collections c
-         WHERE requests.id = $6
+         WHERE requests.id = $7
            AND requests.collection_id = c.id
-           AND c.user_id = $7
+           AND c.user_id = $8
          RETURNING requests.id, requests.collection_id, requests.name,
-                   requests.method, requests.url, requests.headers,
-                   requests.body, requests.created_at`,
+                   requests.method, requests.url, requests.base_url,
+                   requests.headers, requests.body, requests.created_at`,
         [
           dto.name,
           dto.method,
           dto.url,
+          dto.baseUrl ?? null,
           dto.headers ?? {},
           dto.body ?? '',
           id,

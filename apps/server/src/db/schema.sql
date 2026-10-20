@@ -19,11 +19,14 @@ CREATE TABLE IF NOT EXISTS requests (
   name          VARCHAR(255) NOT NULL,
   method        VARCHAR(16)  NOT NULL CHECK (method IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD')),
   url           TEXT NOT NULL,
+  base_url      TEXT,
   headers       JSONB NOT NULL DEFAULT '{}'::jsonb,
   body          TEXT NOT NULL DEFAULT '',
   created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_requests_collection ON requests(collection_id);
+
+ALTER TABLE requests ADD COLUMN IF NOT EXISTS base_url TEXT;
 
 CREATE TABLE IF NOT EXISTS request_history (
   id               SERIAL PRIMARY KEY,
