@@ -6,12 +6,15 @@ import {
 } from './components/RequestBuilder.js';
 import { Collections } from './components/Collections.js';
 import { HistoryList } from './components/HistoryList.js';
+import { OpenApiImporter } from './components/OpenApiImporter.js';
 import { loadAuth, clearAuth, type StoredAuth } from './lib/auth.js';
 
 export function App() {
   const [auth, setAuth] = useState<StoredAuth | null>(() => loadAuth());
   const [requestSeed, setRequestSeed] = useState<RequestSeed | null>(null);
   const [historyKey, setHistoryKey] = useState(0);
+  const [showImporter, setShowImporter] = useState(false);
+  const [collectionsKey, setCollectionsKey] = useState(0);
   const [currentRequest, setCurrentRequest] = useState<RequestSeed | null>(
     null,
   );
@@ -58,6 +61,12 @@ export function App() {
           >
             Wyloguj
           </button>
+          <button
+            onClick={() => setShowImporter(true)}
+            className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
+          >
+            Import OpenAPI
+          </button>
         </div>
       </header>
       <main className="space-y-4">
@@ -73,8 +82,16 @@ export function App() {
             accessToken={auth.accessToken}
             currentRequest={currentRequest}
             onLoadRequest={handleLoadRequest}
+            refreshKey={collectionsKey}
           />
           <HistoryList accessToken={auth.accessToken} refreshKey={historyKey} />
+          {showImporter && (
+            <OpenApiImporter
+              accessToken={auth.accessToken}
+              onClose={() => setShowImporter(false)}
+              onImported={() => setCollectionsKey((k) => k + 1)}
+            />
+          )}
         </div>
       </main>
     </div>

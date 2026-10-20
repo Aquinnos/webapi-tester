@@ -7,6 +7,9 @@ import type {
   CreateRequestDto,
   UpdateRequestDto,
   HistoryEntryDto,
+  OpenApiImportResultDto,
+  OpenApiImportDto,
+  ApiErrorDto,
 } from '@webapi-tester/shared';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3001';
@@ -58,13 +61,22 @@ export const collectionsApi = {
     api<void>(`/requests/${id}`, { method: 'DELETE', accessToken: token }),
 };
 
-export const historyApi = { 
-  list: (token: string) => 
-    api<{ entries: HistoryEntryDto[] }>('/history', { accessToken: token }), 
+export const historyApi = {
+  list: (token: string) =>
+    api<{ entries: HistoryEntryDto[] }>('/history', { accessToken: token }),
   remove: (token: string, id: string) =>
     api<void>(`/history/${id}`, { method: 'DELETE', accessToken: token }),
   clear: (token: string) =>
     api<void>('/history', { method: 'DELETE', accessToken: token }),
+};
+
+export const openApiApi = {
+  import: (dto: OpenApiImportDto, token: string) =>
+    api<OpenApiImportResultDto>('/openapi/import', {
+      method: 'POST',
+      accessToken: token,
+      body: dto,
+    }),
 };
 
 interface ApiOptions {

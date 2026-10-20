@@ -19,12 +19,14 @@ interface CollectionsProps {
   accessToken: string;
   currentRequest: RequestSeed | null;
   onLoadRequest: (seed: RequestSeed) => void;
+  refreshKey?: number;
 }
 
 export function Collections({
   accessToken,
   currentRequest,
   onLoadRequest,
+  refreshKey = 0,
 }: CollectionsProps) {
   const [collections, setCollections] = useState<CollectionDto[]>([]);
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -39,7 +41,7 @@ export function Collections({
 
   useEffect(() => {
     void refresh();
-  }, [accessToken]);
+  }, [accessToken, refreshKey]);
 
   async function refresh() {
     try {
@@ -117,6 +119,7 @@ export function Collections({
       url: r.url,
       headers: r.headers,
       body: r.body,
+      ...(r.baseUrl ? { baseUrl: r.baseUrl } : {}),
     });
   }
 

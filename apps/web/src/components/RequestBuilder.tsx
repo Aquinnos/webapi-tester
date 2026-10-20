@@ -21,6 +21,7 @@ export interface RequestSeed {
   url: string;
   headers: Record<string, string>;
   body: string;
+  baseUrl?: string;
 }
 
 interface RequestBuilderProps {
@@ -70,6 +71,7 @@ export function RequestBuilder({
     headersToRows(DEFAULT_SEED.headers),
   );
   const [body, setBody] = useState(DEFAULT_SEED.body);
+  const [baseUrl, setBaseUrl] = useState<string | null>(null);
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -80,6 +82,7 @@ export function RequestBuilder({
     setUrl(seed.url);
     setHeaders(headersToRows(seed.headers));
     setBody(seed.body);
+    setBaseUrl(seed.baseUrl ?? null);
     setResponse(null);
     setError(null);
     onSeedApplied?.();
@@ -97,6 +100,7 @@ export function RequestBuilder({
       headers: headerObj,
       body,
       bodyEncoding: 'utf-8',
+      ...(baseUrl ? { baseUrl } : {}),
     };
 
     try {
