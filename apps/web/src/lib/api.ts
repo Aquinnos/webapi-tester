@@ -71,7 +71,7 @@ export const historyApi = {
 };
 
 export const openApiApi = {
-  import: (dto: OpenApiImportDto, token: string) =>
+  import: (dto: OpenApiImportDto, token?: string) =>
     api<OpenApiImportResultDto>('/openapi/import', {
       method: 'POST',
       accessToken: token,

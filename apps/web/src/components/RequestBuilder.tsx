@@ -18,6 +18,11 @@ const METHODS: HttpMethod[] = [
 
 type Transport = 'server' | 'agent';
 
+const TRANSPORTS: ReadonlyArray<readonly [Transport, string]> = [
+  ['server', 'przez serwer'],
+  ['agent', 'agent lokalny'],
+];
+
 export interface RequestSeed {
   name: string;
   method: HttpMethod;
@@ -28,7 +33,7 @@ export interface RequestSeed {
 }
 
 interface RequestBuilderProps {
-  accessToken: string;
+  accessToken?: string;
   seed: RequestSeed | null;
   onSent?: () => void;
   onSeedApplied?: () => void;
@@ -75,10 +80,15 @@ export function RequestBuilder({
   );
   const [body, setBody] = useState(DEFAULT_SEED.body);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
-  const [transport, setTransport] = useState<Transport>('server');
+  const [transport, setTransport] = useState<Transport>(
+    accessToken ? 'server' : 'agent',
+  );
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const canUseServer = Boolean(accessToken);
+  const effectiveTransport: Transport = canUseServer ? transport : 'agent';
 
   useEffect(() => {
     if (!seed) return;
@@ -108,7 +118,7 @@ export function RequestBuilder({
     };
 
     try {
-      if (transport === 'agent') {
+      if (!accessToken || effectiveTransport === 'agent') {
         setResponse(await agentForward(dto));
       } else {
         setResponse(await proxyForward(dto, accessToken));
@@ -210,25 +220,33 @@ export function RequestBuilder({
         </div>
 
         <div className="flex gap-1 mb-3" role="group" aria-label="Transport">
-          {(
-            [
-              ['server', 'przez serwer'],
-              ['agent', 'agent lokalny'],
-            ] as const
-          ).map(([value, label]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setTransport(value)}
-              className={
-                transport === value
-                  ? 'px-3 py-1 rounded text-sm bg-blue-600 text-white'
-                  : 'px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200'
-              }
-            >
-              {label}
-            </button>
-          ))}
+          {TRANSPORTS.map(([value, label]) => {
+            const unavailable = value === 'server' && !canUseServer;
+            return (
+              <button
+                key={value}
+                type="button"
+                disabled={unavailable}
+                title={
+                  unavailable
+                    ? 'Wysyłka przez serwer wymaga zalogowania'
+                    : undefined
+                }
+                onClick={() => setTransport(value)}
+                className={
+                  effectiveTransport === value
+                    ? 'px-3 py-1 rounded text-sm bg-blue-600 text-white'
+                    : `px-3 py-1 rounded text-sm bg-gray-100 ${
+                        unavailable
+                          ? 'opacity-40 cursor-not-allowed'
+                          : 'hover:bg-gray-200'
+                      }`
+                }
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
 
         <button

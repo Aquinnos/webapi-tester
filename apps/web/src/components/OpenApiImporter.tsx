@@ -3,7 +3,7 @@ import { openApiApi, collectionsApi, ApiError } from '../lib/api.js';
 import type { GeneratedRequestDto } from '@webapi-tester/shared';
 
 interface OpenApiImporterProps {
-  accessToken: string;
+  accessToken?: string;
   onClose: () => void;
   onImported: () => void;
 }
@@ -61,6 +61,10 @@ export function OpenApiImporter({
   }
 
   async function handleSave() {
+    if (!accessToken) {
+      setError('Zaloguj się, aby zapisać wygenerowaną kolekcję.');
+      return;
+    }
     if (!collectionName.trim() || requests.length === 0) return;
     setError(null);
     setSaving(true);
@@ -194,16 +198,22 @@ export function OpenApiImporter({
               className="border p-2 rounded w-full mb-3"
             />
 
-            <div className="flex gap-2">
-              <button
-                onClick={handleSave}
-                disabled={saving || !collectionName.trim()}
-                className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
-              >
-                {saving
-                  ? 'Zapisuję...'
-                  : `Utwórz kolekcję (${requests.length} zapytań)`}
-              </button>
+            <div className="flex gap-2 items-center">
+              {accessToken ? (
+                <button
+                  onClick={handleSave}
+                  disabled={saving || !collectionName.trim()}
+                  className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                >
+                  {saving
+                    ? 'Zapisuję...'
+                    : `Utwórz kolekcję (${requests.length} zapytań)`}
+                </button>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  Zaloguj się, aby zapisać wygenerowaną kolekcję.
+                </p>
+              )}
               <button
                 onClick={onClose}
                 className="bg-gray-200 px-4 py-2 rounded text-sm"
