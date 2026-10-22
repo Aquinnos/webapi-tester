@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import type { HttpMethod, ProxyForwardRequestDto } from '@webapi-tester/shared';
-import { proxyForward } from '../lib/proxy-fetch.js';
-import { ApiError } from '../lib/api.js';
+import { historyApi } from '../lib/api.js';
+import { decodeBase64ToText } from '../lib/body.js';
 import { ResponseViewer } from './ResponseViewer.js';
 import { AgentError, agentForward } from '../lib/proxy-agent-fetch.js';
 import type { ProxyResponseDto } from '@webapi-tester/shared';
@@ -16,12 +16,7 @@ const METHODS: HttpMethod[] = [
   'HEAD',
 ];
 
-type Transport = 'server' | 'agent';
-
-const TRANSPORTS: ReadonlyArray<readonly [Transport, string]> = [
-  ['server', 'przez serwer'],
-  ['agent', 'agent lokalny'],
-];
+const MAX_HISTORY_BODY = 50_000;
 
 export interface RequestSeed {
   name: string;
@@ -67,6 +62,25 @@ function rowsToHeaders(rows: HeaderRow[]): Record<string, string> {
   return obj;
 }
 
+// Historia jest funkcją dodatkową: jej zapis nie może unieważnić odpowiedzi,
+// którą użytkownik właśnie wysłał i zobaczył w podglądzie.
+async function saveHistoryEntry(
+  accessToken: string,
+  request: ProxyForwardRequestDto,
+  response: ProxyResponseDto,
+): Promise<void> {
+  const text = decodeBase64ToText(response.bodyBase64);
+  await historyApi
+    .record(accessToken, {
+      method: request.method,
+      url: request.url,
+      status: response.status,
+      durationMs: response.durationMs,
+      body: text.slice(0, MAX_HISTORY_BODY),
+    })
+    .catch(() => undefined);
+}
+
 export function RequestBuilder({
   accessToken,
   seed,
@@ -80,15 +94,9 @@ export function RequestBuilder({
   );
   const [body, setBody] = useState(DEFAULT_SEED.body);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
-  const [transport, setTransport] = useState<Transport>(
-    accessToken ? 'server' : 'agent',
-  );
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const canUseServer = Boolean(accessToken);
-  const effectiveTransport: Transport = canUseServer ? transport : 'agent';
 
   useEffect(() => {
     if (!seed) return;
@@ -107,25 +115,24 @@ export function RequestBuilder({
     setResponse(null);
     setLoading(true);
 
-    const headerObj = rowsToHeaders(headers);
     const dto: ProxyForwardRequestDto = {
       method,
       url,
-      headers: headerObj,
+      headers: rowsToHeaders(headers),
       body,
       bodyEncoding: 'utf-8',
       ...(baseUrl ? { baseUrl } : {}),
     };
 
     try {
-      if (!accessToken || effectiveTransport === 'agent') {
-        setResponse(await agentForward(dto));
-      } else {
-        setResponse(await proxyForward(dto, accessToken));
+      const result = await agentForward(dto);
+      setResponse(result);
+      if (accessToken) {
+        await saveHistoryEntry(accessToken, dto, result);
         onSent?.();
       }
     } catch (err) {
-      if (err instanceof ApiError || err instanceof AgentError) {
+      if (err instanceof AgentError) {
         setError(err.details ? `${err.message}: ${err.details}` : err.message);
       } else {
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -217,36 +224,6 @@ export function RequestBuilder({
             placeholder='{"key": "value"}'
             className="border p-2 rounded w-full h-32 font-mono text-sm"
           />
-        </div>
-
-        <div className="flex gap-1 mb-3" role="group" aria-label="Transport">
-          {TRANSPORTS.map(([value, label]) => {
-            const unavailable = value === 'server' && !canUseServer;
-            return (
-              <button
-                key={value}
-                type="button"
-                disabled={unavailable}
-                title={
-                  unavailable
-                    ? 'Wysyłka przez serwer wymaga zalogowania'
-                    : undefined
-                }
-                onClick={() => setTransport(value)}
-                className={
-                  effectiveTransport === value
-                    ? 'px-3 py-1 rounded text-sm bg-blue-600 text-white'
-                    : `px-3 py-1 rounded text-sm bg-gray-100 ${
-                        unavailable
-                          ? 'opacity-40 cursor-not-allowed'
-                          : 'hover:bg-gray-200'
-                      }`
-                }
-              >
-                {label}
-              </button>
-            );
-          })}
         </div>
 
         <button

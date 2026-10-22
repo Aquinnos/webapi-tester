@@ -1,10 +1,25 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { getPool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
-import type { HistoryEntryDto } from '@webapi-tester/shared';
+import type {
+  HistoryEntryDto,
+  RecordHistoryDto,
+  RecordHistoryResultDto,
+} from '@webapi-tester/shared';
 
 export const historyRouter: ReturnType<typeof Router> = Router();
+
+const MAX_BODY_LENGTH = 50_000;
+
+const recordSchema = z.object({
+  method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']),
+  url: z.string().min(1).max(2048),
+  status: z.number().int().min(100).max(599),
+  durationMs: z.number().int().min(0),
+  body: z.string().default(''),
+});
 
 interface HistoryRow {
   id: number;
@@ -46,6 +61,36 @@ historyRouter.get('/history', requireAuth, async (req, res, next) => {
       [userId],
     );
     res.json({ entries: result.rows.map(historyFromRow) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+historyRouter.post('/history', requireAuth, async (req, res, next) => {
+  try {
+    const dto = recordSchema.parse(req.body) as RecordHistoryDto;
+    const pool = getPool();
+    const userId = Number(req.user!.id);
+    const result = await pool.query<{ id: number; executed_at: Date }>(
+      `INSERT INTO request_history
+         (user_id, request_id, method, url, status_code, response_time_ms, response_body)
+       VALUES ($1, NULL, $2, $3, $4, $5, $6)
+       RETURNING id, executed_at`,
+      [
+        userId,
+        dto.method,
+        dto.url,
+        dto.status,
+        dto.durationMs,
+        dto.body.slice(0, MAX_BODY_LENGTH),
+      ],
+    );
+    const row = result.rows[0]!;
+    const body: RecordHistoryResultDto = {
+      id: String(row.id),
+      executedAt: row.executed_at.toISOString(),
+    };
+    res.status(201).json(body);
   } catch (err) {
     next(err);
   }

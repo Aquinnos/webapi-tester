@@ -7,6 +7,8 @@ import type {
   CreateRequestDto,
   UpdateRequestDto,
   HistoryEntryDto,
+  RecordHistoryDto,
+  RecordHistoryResultDto,
   OpenApiImportResultDto,
   OpenApiImportDto,
   ApiErrorDto,
@@ -64,6 +66,12 @@ export const collectionsApi = {
 export const historyApi = {
   list: (token: string) =>
     api<{ entries: HistoryEntryDto[] }>('/history', { accessToken: token }),
+  record: (token: string, dto: RecordHistoryDto) =>
+    api<RecordHistoryResultDto>('/history', {
+      method: 'POST',
+      accessToken: token,
+      body: dto,
+    }),
   remove: (token: string, id: string) =>
     api<void>(`/history/${id}`, { method: 'DELETE', accessToken: token }),
   clear: (token: string) =>

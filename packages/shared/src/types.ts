@@ -126,6 +126,19 @@ export interface HistoryEntryDto {
   timestamp: string;
 }
 
+export interface RecordHistoryDto {
+  method: HttpMethod;
+  url: string;
+  status: number;
+  durationMs: number;
+  body: string;
+}
+
+export interface RecordHistoryResultDto {
+  id: string;
+  executedAt: string;
+}
+
 // ============ OpenAPI (WF4) ============
 
 export interface OpenApiImportUrlDto {

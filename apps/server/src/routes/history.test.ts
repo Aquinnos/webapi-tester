@@ -141,6 +141,117 @@ describe('GET /history', () => {
   });
 });
 
+describe('POST /history', () => {
+  it('requires auth', async () => {
+    const res = await request(app).post('/history').send({
+      method: 'GET',
+      url: 'https://example.com',
+      status: 200,
+      durationMs: 120,
+      body: 'ok',
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('records an entry and returns id and executedAt', async () => {
+    const res = await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'POST',
+        url: 'https://example.com/api/items',
+        status: 201,
+        durationMs: 143,
+        body: '{"ok":true}',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBeTruthy();
+    expect(res.body.executedAt).toBeTruthy();
+  });
+
+  it('makes the recorded entry visible in GET /history', async () => {
+    await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'PUT',
+        url: 'https://example.com/api/items/7',
+        status: 204,
+        durationMs: 55,
+        body: '',
+      });
+
+    const res = await request(app)
+      .get('/history')
+      .set('Authorization', `Bearer ${aliceToken}`);
+
+    expect(res.body.entries).toHaveLength(1);
+    expect(res.body.entries[0]).toMatchObject({
+      method: 'PUT',
+      url: 'https://example.com/api/items/7',
+      status: 204,
+      durationMs: 55,
+      body: '',
+    });
+  });
+
+  it('truncates response body to 50000 characters', async () => {
+    const long = 'x'.repeat(60_000);
+    await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'GET',
+        url: 'https://example.com/big',
+        status: 200,
+        durationMs: 900,
+        body: long,
+      });
+
+    const res = await request(app)
+      .get('/history')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(res.body.entries[0].body).toHaveLength(50_000);
+  });
+
+  it('rejects an unsupported method with 400', async () => {
+    const res = await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'TRACE',
+        url: 'https://example.com',
+        status: 200,
+        durationMs: 10,
+        body: '',
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects a non-numeric status with 400', async () => {
+    const res = await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'GET',
+        url: 'https://example.com',
+        status: 'OK',
+        durationMs: 10,
+        body: '',
+      });
+    expect(res.status).toBe(400);
+  });
+
+  it('rejects an empty url with 400', async () => {
+    const res = await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({ method: 'GET', url: '', status: 200, durationMs: 10, body: '' });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('DELETE /history/:id', () => {
   it('deletes a single entry', async () => {
     const id = await seedHistory(aliceId, 'http://a.com', new Date());

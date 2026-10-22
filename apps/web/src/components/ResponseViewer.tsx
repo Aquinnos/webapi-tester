@@ -1,16 +1,8 @@
 import type { ProxyResponseDto } from '@webapi-tester/shared';
+import { decodeBase64ToText } from '../lib/body.js';
 
 interface ResponseViewerProps {
   response: ProxyResponseDto | null;
-}
-
-function decodeBase64(base64: string): Uint8Array {
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  return bytes;
 }
 
 function statusColor(status: number): string {
@@ -30,8 +22,7 @@ export function ResponseViewer({ response }: ResponseViewerProps) {
     );
   }
 
-  const bytes = decodeBase64(response.bodyBase64);
-  const text = new TextDecoder('utf-8').decode(bytes);
+  const text = decodeBase64ToText(response.bodyBase64);
 
   const isJson =
     response.bodyContentType.includes('json') || /^\s*[\{\[]/.test(text);
