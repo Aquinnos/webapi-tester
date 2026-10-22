@@ -1,0 +1,84 @@
+import { Router, type Response } from 'express';
+import { z } from 'zod';
+import { timingSafeEqual } from 'node:crypto';
+import { config } from '../config.js';
+import { forwardRequest, AgentForwardError } from '../services/forward.js';
+import type { ProxyForwardRequestDto } from '@webapi-tester/shared';
+
+// CORS headers to allow cross-origin requests to the proxy.
+const CORS_HEADERS: Record<string, string> = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods':
+    'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Proxy-Key',
+  'Access-Control-Max-Age': '600',
+};
+
+// keysMatch function to compare the provided key with the expected key in a timing-safe manner.
+function keysMatch(provided: string, expected: string): boolean {
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
+}
+
+const forwardSchema = z.object({
+  method: z.enum(['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD']),
+  url: z.string().min(1).max(2048),
+  headers: z.record(z.string(), z.string()).default({}),
+  body: z.string().default(''),
+  bodyEncoding: z.enum(['utf-8', 'base64']).default('utf-8'),
+  baseUrl: z.string().optional(),
+});
+
+function sendError(
+  res: Response,
+  status: number,
+  error: string,
+  details?: string,
+) {
+  res.status(status).json({ error, ...(details ? { details } : {}) });
+}
+
+export const forwardRouter: ReturnType<typeof Router> = Router();
+
+forwardRouter.use((_req, res, next) => {
+  res.set(CORS_HEADERS);
+  next();
+});
+
+forwardRouter.options('/forward', (_req, res) => {
+  res.status(204).end();
+});
+
+forwardRouter.post('/forward', async (req, res) => {
+  const providedKey = req.header('X-Proxy-Key');
+  if (!providedKey || !keysMatch(providedKey, config.PROXY_SHARED_SECRET)) {
+    sendError(res, 401, 'Invalid or missing X-Proxy-Key');
+    return;
+  }
+
+  const parsed = forwardSchema.safeParse(req.body);
+  if (!parsed.success) {
+    sendError(
+      res,
+      400,
+      'Invalid request payload',
+      parsed.error.issues
+        .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
+        .join('; '),
+    );
+    return;
+  }
+
+  try {
+    const result = await forwardRequest(parsed.data as ProxyForwardRequestDto);
+    res.json(result);
+  } catch (err) {
+    if (err instanceof AgentForwardError) {
+      sendError(res, err.status, err.message);
+      return;
+    }
+    sendError(res, 502, err instanceof Error ? err.message : 'Unknown error');
+  }
+});

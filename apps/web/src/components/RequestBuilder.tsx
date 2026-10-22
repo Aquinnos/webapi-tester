@@ -3,6 +3,7 @@ import type { HttpMethod, ProxyForwardRequestDto } from '@webapi-tester/shared';
 import { proxyForward } from '../lib/proxy-fetch.js';
 import { ApiError } from '../lib/api.js';
 import { ResponseViewer } from './ResponseViewer.js';
+import { AgentError, agentForward } from '../lib/proxy-agent-fetch.js';
 import type { ProxyResponseDto } from '@webapi-tester/shared';
 
 const METHODS: HttpMethod[] = [
@@ -14,6 +15,8 @@ const METHODS: HttpMethod[] = [
   'OPTIONS',
   'HEAD',
 ];
+
+type Transport = 'server' | 'agent';
 
 export interface RequestSeed {
   name: string;
@@ -72,6 +75,7 @@ export function RequestBuilder({
   );
   const [body, setBody] = useState(DEFAULT_SEED.body);
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
+  const [transport, setTransport] = useState<Transport>('server');
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -104,11 +108,14 @@ export function RequestBuilder({
     };
 
     try {
-      const res = await proxyForward(dto, accessToken);
-      setResponse(res);
-      onSent?.();
+      if (transport === 'agent') {
+        setResponse(await agentForward(dto));
+      } else {
+        setResponse(await proxyForward(dto, accessToken));
+        onSent?.();
+      }
     } catch (err) {
-      if (err instanceof ApiError) {
+      if (err instanceof ApiError || err instanceof AgentError) {
         setError(err.details ? `${err.message}: ${err.details}` : err.message);
       } else {
         setError(err instanceof Error ? err.message : 'Unknown error');
@@ -200,6 +207,28 @@ export function RequestBuilder({
             placeholder='{"key": "value"}'
             className="border p-2 rounded w-full h-32 font-mono text-sm"
           />
+        </div>
+
+        <div className="flex gap-1 mb-3" role="group" aria-label="Transport">
+          {(
+            [
+              ['server', 'przez serwer'],
+              ['agent', 'agent lokalny'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setTransport(value)}
+              className={
+                transport === value
+                  ? 'px-3 py-1 rounded text-sm bg-blue-600 text-white'
+                  : 'px-3 py-1 rounded text-sm bg-gray-100 hover:bg-gray-200'
+              }
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         <button
