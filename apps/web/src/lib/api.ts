@@ -7,6 +7,7 @@ import type {
   CreateRequestDto,
   UpdateRequestDto,
   HistoryEntryDto,
+  HistoryListItemDto,
   RecordHistoryDto,
   RecordHistoryResultDto,
   OpenApiImportResultDto,
@@ -25,6 +26,16 @@ export class ApiError extends Error {
     super(message);
   }
 }
+
+export const authApi = {
+  logout(refreshToken: string, accessToken: string): Promise<void> {
+    return api<void>('/auth/logout', {
+      method: 'POST',
+      body: { refreshToken },
+      accessToken,
+    });
+  },
+};
 
 export const collectionsApi = {
   list: (token: string) =>
@@ -65,7 +76,9 @@ export const collectionsApi = {
 
 export const historyApi = {
   list: (token: string) =>
-    api<{ entries: HistoryEntryDto[] }>('/history', { accessToken: token }),
+    api<{ entries: HistoryListItemDto[] }>('/history', { accessToken: token }),
+  get: (token: string, id: string) =>
+    api<HistoryEntryDto>(`/history/${id}`, { accessToken: token }),
   record: (token: string, dto: RecordHistoryDto) =>
     api<RecordHistoryResultDto>('/history', {
       method: 'POST',

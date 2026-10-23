@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { AuthForm } from './components/AuthForm.js';
 import {
   RequestBuilder,
   type RequestSeed,
+  type RequestDraft,
 } from './components/RequestBuilder.js';
 import { Collections } from './components/Collections.js';
 import { HistoryList } from './components/HistoryList.js';
 import { OpenApiImporter } from './components/OpenApiImporter.js';
 import { loadAuth, clearAuth, type StoredAuth } from './lib/auth.js';
+import { authApi } from './lib/api.js';
 
 export function App() {
   const [auth, setAuth] = useState<StoredAuth | null>(() => loadAuth());
@@ -16,15 +18,24 @@ export function App() {
   const [showImporter, setShowImporter] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [collectionsKey, setCollectionsKey] = useState(0);
-  const [currentRequest, setCurrentRequest] = useState<RequestSeed | null>(
+  const [currentRequest, setCurrentRequest] = useState<RequestDraft | null>(
     null,
   );
 
   const accessToken = auth?.accessToken;
 
-  function handleLogout() {
-    clearAuth();
-    setAuth(null);
+  async function handleLogout() {
+    const current = auth;
+    try {
+      if (current) {
+        await authApi.logout(current.refreshToken, current.accessToken);
+      }
+    } catch {
+      // Revoking server-side is best effort; the local session must always end.
+    } finally {
+      clearAuth();
+      setAuth(null);
+    }
   }
 
   function handleAuthSuccess() {
@@ -44,14 +55,9 @@ export function App() {
     setHistoryKey((k) => k + 1);
   }
 
-  function handleFormChange(
-    method: RequestSeed['method'],
-    url: string,
-    headers: Record<string, string>,
-    body: string,
-  ) {
-    setCurrentRequest({ name: 'Current', method, url, headers, body });
-  }
+  const handleFormChange = useCallback((draft: RequestDraft) => {
+    setCurrentRequest(draft);
+  }, []);
 
   return (
     <div className="p-6">
@@ -91,6 +97,7 @@ export function App() {
         <RequestBuilder
           accessToken={accessToken}
           seed={requestSeed}
+          onFormChange={handleFormChange}
           onSent={handleSent}
           onSeedApplied={handleSeedApplied}
         />

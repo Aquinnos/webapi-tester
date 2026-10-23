@@ -4,6 +4,9 @@ import request from 'supertest';
 import { authRouter } from './auth.js';
 import { errorHandler } from '../middleware/error.js';
 import { getPool, closePool } from '../db/pool.js';
+import { hashPassword } from '../services/password.js';
+import { config } from '../config.js';
+import jwt from 'jsonwebtoken';
 import { readFile } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -97,8 +100,95 @@ describe('auth routes', () => {
     expect(res.status).toBe(401);
   });
 
-  it('logout returns 204', async () => {
-    const res = await request(app).post('/auth/logout').send();
-    expect(res.status).toBe(204);
+  it('logout requires auth', async () => {
+    const res = await request(app)
+      .post('/auth/logout')
+      .send({ refreshToken: 'whatever' });
+    expect(res.status).toBe(401);
+  });
+
+  it('logout revokes the refresh token', async () => {
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'alice@example.com', password: 'password123' });
+    const { accessToken, refreshToken } = login.body;
+
+    const logout = await request(app)
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ refreshToken });
+    expect(logout.status).toBe(204);
+
+    const refresh = await request(app)
+      .post('/auth/refresh')
+      .send({ refreshToken });
+    expect(refresh.status).toBe(401);
+  });
+
+  it('rotates refresh tokens and invalidates the previous one', async () => {
+    const login = await request(app)
+      .post('/auth/login')
+      .send({ email: 'alice@example.com', password: 'password123' });
+    const first = login.body.refreshToken;
+
+    const refreshed = await request(app)
+      .post('/auth/refresh')
+      .send({ refreshToken: first });
+    expect(refreshed.status).toBe(200);
+    const second = refreshed.body.refreshToken;
+    expect(second).toBeTruthy();
+    expect(second).not.toBe(first);
+
+    const reuse = await request(app)
+      .post('/auth/refresh')
+      .send({ refreshToken: first });
+    expect(reuse.status).toBe(401);
+
+    const secondUse = await request(app)
+      .post('/auth/refresh')
+      .send({ refreshToken: second });
+    expect(secondUse.status).toBe(200);
+  });
+
+  it('rejects a correctly signed refresh token that was never issued', async () => {
+    const user = await pool.query<{ id: number }>(
+      `SELECT id FROM users WHERE email = 'alice@example.com'`,
+    );
+    const forged = jwt.sign(
+      { sub: String(user.rows[0]!.id), type: 'refresh' },
+      config.JWT_SECRET_KEY,
+      { algorithm: 'HS256', expiresIn: '7d' },
+    );
+
+    const res = await request(app)
+      .post('/auth/refresh')
+      .send({ refreshToken: forged });
+    expect(res.status).toBe(401);
+  });
+
+  it('does not allow logout to revoke another user token', async () => {
+    const alice = await request(app)
+      .post('/auth/login')
+      .send({ email: 'alice@example.com', password: 'password123' });
+    await pool.query(
+      `INSERT INTO users (email, password_hash)
+       VALUES ('carol@example.com', $1)`,
+      [await hashPassword('password123')],
+    );
+    const bobLogin = await request(app)
+      .post('/auth/login')
+      .send({ email: 'carol@example.com', password: 'password123' });
+    expect(bobLogin.status).toBe(200);
+
+    const logout = await request(app)
+      .post('/auth/logout')
+      .set('Authorization', `Bearer ${bobLogin.body.accessToken}`)
+      .send({ refreshToken: alice.body.refreshToken });
+    expect(logout.status).toBe(204);
+
+    const stillWorks = await request(app)
+      .post('/auth/refresh')
+      .send({ refreshToken: alice.body.refreshToken });
+    expect(stillWorks.status).toBe(200);
   });
 });

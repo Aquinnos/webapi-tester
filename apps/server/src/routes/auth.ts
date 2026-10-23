@@ -8,6 +8,12 @@ import {
   verifyRefreshToken,
 } from '../services/jwt.js';
 import { HttpError } from '../middleware/error.js';
+import { requireAuth } from '../middleware/auth.js';
+import {
+  isRefreshTokenActive,
+  revokeRefreshToken,
+  storeRefreshToken,
+} from '../services/refresh-token-store.js';
 import type { AuthSuccessDto, UserDto } from '@webapi-tester/shared';
 
 export const authRouter: ReturnType<typeof Router> = Router();
@@ -16,6 +22,8 @@ const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
 });
+
+const refreshSchema = z.object({ refreshToken: z.string() });
 
 interface UserRow {
   id: number;
@@ -32,12 +40,24 @@ function toUserDto(row: UserRow): UserDto {
   };
 }
 
-function authSuccess(row: UserRow): AuthSuccessDto {
+async function issueSession(row: UserRow): Promise<AuthSuccessDto> {
+  const refreshToken = signRefreshToken(String(row.id));
+  await storeRefreshToken(row.id, refreshToken);
   return {
     user: toUserDto(row),
     accessToken: signAccessToken(String(row.id), row.email),
-    refreshToken: signRefreshToken(String(row.id)),
+    refreshToken,
   };
+}
+
+async function findUserById(id: number): Promise<UserRow> {
+  const result = await getPool().query<UserRow>(
+    'SELECT id, email, password_hash, created_at FROM users WHERE id = $1',
+    [id],
+  );
+  const row = result.rows[0];
+  if (!row) throw new HttpError(401, 'User not found');
+  return row;
 }
 
 authRouter.post('/register', async (req, res, next) => {
@@ -69,7 +89,7 @@ authRouter.post('/register', async (req, res, next) => {
       throw err;
     }
 
-    res.status(201).json(authSuccess(row));
+    res.status(201).json(await issueSession(row));
   } catch (e) {
     next(e);
   }
@@ -78,8 +98,7 @@ authRouter.post('/register', async (req, res, next) => {
 authRouter.post('/login', async (req, res, next) => {
   try {
     const { email, password } = credentialsSchema.parse(req.body);
-    const pool = getPool();
-    const result = await pool.query<UserRow>(
+    const result = await getPool().query<UserRow>(
       'SELECT id, email, password_hash, created_at FROM users WHERE email = $1',
       [email],
     );
@@ -87,7 +106,7 @@ authRouter.post('/login', async (req, res, next) => {
     if (!row || !(await verifyPassword(password, row.password_hash))) {
       throw new HttpError(401, 'Invalid credentials');
     }
-    res.json(authSuccess(row));
+    res.json(await issueSession(row));
   } catch (e) {
     next(e);
   }
@@ -95,28 +114,31 @@ authRouter.post('/login', async (req, res, next) => {
 
 authRouter.post('/refresh', async (req, res, next) => {
   try {
-    const schema = z.object({ refreshToken: z.string() });
-    const { refreshToken } = schema.parse(req.body);
+    const { refreshToken } = refreshSchema.parse(req.body);
     let decoded;
     try {
       decoded = verifyRefreshToken(refreshToken);
     } catch {
       throw new HttpError(401, 'Invalid refresh token');
     }
-    const pool = getPool();
-    const result = await pool.query<UserRow>(
-      'SELECT id, email, password_hash, created_at FROM users WHERE id = $1',
-      [Number(decoded.sub)],
-    );
-    const row = result.rows[0];
-    if (!row) throw new HttpError(401, 'User not found');
-    res.json(authSuccess(row));
+    const userId = Number(decoded.sub);
+    if (!(await isRefreshTokenActive(userId, refreshToken))) {
+      throw new HttpError(401, 'Refresh token revoked or expired');
+    }
+    await revokeRefreshToken(userId, refreshToken);
+    const row = await findUserById(userId);
+    res.json(await issueSession(row));
   } catch (e) {
     next(e);
   }
 });
 
-authRouter.post('/logout', async (req, res) => {
-  // Stateless: klient usuwa tokeny. Endpoint istnieje dla kompatybilności z WF1.
-  res.sendStatus(204);
+authRouter.post('/logout', requireAuth, async (req, res, next) => {
+  try {
+    const { refreshToken } = refreshSchema.parse(req.body);
+    await revokeRefreshToken(Number(req.user!.id), refreshToken);
+    res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
 });
