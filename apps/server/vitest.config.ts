@@ -8,5 +8,20 @@ process.env.POSTGRES_URL =
   'postgresql://webapi:webapi@localhost:5433/webapi_tester_test';
 
 export default defineConfig({
-  test: { fileParallelism: false },
+  test: {
+    fileParallelism: false,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'html'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.ts'],
+      exclude: ['**/*.test.ts', '**/index.ts', '**/migrate.ts'],
+      thresholds: {
+        statements: 80,
+        branches: 60,
+        functions: 80,
+        lines: 80,
+      },
+    },
+  },
 });

@@ -10,6 +10,8 @@
     "migrate": "tsx --env-file=../../.env src/db/migrate.ts",
     "pretest": "docker compose -f ../../docker-compose.yml --profile test up -d --wait postgres-test",
     "test": "vitest run",
+    "pretest:coverage": "docker compose -f ../../docker-compose.yml --profile test up -d --wait postgres-test",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -31,6 +33,7 @@
     "@types/node": "^20.16.13",
     "@types/pg": "^8.11.10",
     "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "^2.1.4",
     "supertest": "^7.3.1",
     "tsx": "^4.19.2",
     "typescript": "^5.5.4",
