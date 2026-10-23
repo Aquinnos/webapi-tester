@@ -17,6 +17,22 @@ services:
       timeout: 5s
       retries: 5
 
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: webapi-tester-postgres-test
+    profiles: ['test']
+    environment:
+      POSTGRES_DB: webapi_tester_test
+      POSTGRES_USER: webapi
+      POSTGRES_PASSWORD: webapi
+    ports:
+      - '5433:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U webapi -d webapi_tester_test']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   pgdata:
     name: webapi-tester-pgdata

@@ -8,6 +8,7 @@
     "build": "tsc",
     "start": "node --env-file=../../.env dist/index.js",
     "migrate": "tsx --env-file=../../.env src/db/migrate.ts",
+    "pretest": "docker compose -f ../../docker-compose.yml --profile test up -d --wait postgres-test",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
