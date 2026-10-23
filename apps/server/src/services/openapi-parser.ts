@@ -1,4 +1,5 @@
 import SwaggerParser from '@apidevtools/swagger-parser';
+import { parse as parseYaml } from 'yaml';
 import type { GeneratedRequestDto, HttpMethod } from '@webapi-tester/shared';
 
 export interface OpenApiParseInput {
@@ -59,6 +60,24 @@ const HTTP_METHODS = [
 type MethodLower = (typeof HTTP_METHODS)[number];
 
 //
+// WF4: specyfikacja w formacie JSON lub YAML.
+function parseSpecContent(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch (jsonErr) {
+    try {
+      return parseYaml(content);
+    } catch (yamlErr) {
+      const detail = yamlErr instanceof Error ? yamlErr.message : 'parse error';
+      const fallback = jsonErr instanceof Error ? jsonErr.message : 'parse error';
+      throw new OpenApiParseError(
+        `Invalid JSON or YAML (JSON: ${fallback}; YAML: ${detail})`,
+        400,
+      );
+    }
+  }
+}
+
 export async function parseOpenApi(
   input: OpenApiParseInput,
 ): Promise<OpenApiParseResult> {
@@ -82,7 +101,7 @@ export async function parseOpenApi(
           502,
         );
       }
-      rawSpec = await res.json();
+      rawSpec = parseSpecContent(await res.text());
     } catch (err) {
       if (err instanceof OpenApiParseError) throw err;
       throw new OpenApiParseError(
@@ -91,14 +110,7 @@ export async function parseOpenApi(
       );
     }
   } else {
-    try {
-      rawSpec = JSON.parse(input.fileContent!);
-    } catch (err) {
-      throw new OpenApiParseError(
-        `Invalid JSON: ${err instanceof Error ? err.message : 'parse error'}`,
-        400,
-      );
-    }
+    rawSpec = parseSpecContent(input.fileContent!);
   }
 
   let api: {
