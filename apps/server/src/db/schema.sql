@@ -2,16 +2,16 @@ CREATE TABLE IF NOT EXISTS users (
   id            SERIAL PRIMARY KEY,
   email         VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
-  created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS refresh_tokens (
   id         SERIAL PRIMARY KEY,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token_hash CHAR(64) NOT NULL UNIQUE,
-  expires_at TIMESTAMP NOT NULL,
-  revoked_at TIMESTAMP,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  expires_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_refresh_tokens_user ON refresh_tokens(user_id);
 
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS collections (
   id         SERIAL PRIMARY KEY,
   user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   name       VARCHAR(255) NOT NULL,
-  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_collections_user ON collections(user_id);
 
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS requests (
   base_url      TEXT,
   headers       JSONB NOT NULL DEFAULT '{}'::jsonb,
   body          TEXT NOT NULL DEFAULT '',
-  created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_requests_collection ON requests(collection_id);
 
@@ -47,6 +47,6 @@ CREATE TABLE IF NOT EXISTS request_history (
   status_code      INTEGER NOT NULL,
   response_time_ms INTEGER NOT NULL,
   response_body    TEXT NOT NULL DEFAULT '',
-  executed_at      TIMESTAMP NOT NULL DEFAULT NOW()
+  executed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_request_history_user_executed ON request_history(user_id, executed_at DESC);
