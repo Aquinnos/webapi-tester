@@ -4,6 +4,12 @@ import request from 'supertest';
 import { openapiRouter } from './openapi.js';
 import { errorHandler } from '../middleware/error.js';
 
+// Testy używają fikcyjnych hostów, więc rozwiązywanie nazw podmieniamy
+// na jeden adres publiczny, który przechodzi kontrolę SSRF.
+vi.mock('node:dns/promises', () => ({
+  lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 }]),
+}));
+
 let app: express.Express;
 
 const SAMPLE_SPEC = {

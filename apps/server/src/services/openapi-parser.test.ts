@@ -1,6 +1,12 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
 import { parseOpenApi, OpenApiParseError } from './openapi-parser.js';
 
+// Testy używają fikcyjnych hostów, więc rozwiązywanie nazw podmieniamy
+// na jeden adres publiczny, który przechodzi kontrolę SSRF.
+vi.mock('node:dns/promises', () => ({
+  lookup: vi.fn(async () => [{ address: '93.184.216.34', family: 4 }]),
+}));
+
 // Wymaganie WF4: specyfikacja w formacie JSON lub YAML, plik albo adres URL;
 // po walidacji generuje kolekcję z metodą, adresem URL i przykładowym ciałem.
 const SPEC_JSON = {

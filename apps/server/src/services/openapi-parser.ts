@@ -1,5 +1,9 @@
 import SwaggerParser from '@apidevtools/swagger-parser';
 import { parse as parseYaml } from 'yaml';
+import {
+  assertImportUrlAllowed,
+  UrlNotAllowedError,
+} from '../lib/ssrf-guard.js';
 import type { GeneratedRequestDto, HttpMethod } from '@webapi-tester/shared';
 
 export interface OpenApiParseInput {
@@ -78,6 +82,58 @@ function parseSpecContent(content: string): unknown {
   }
 }
 
+const MAX_REDIRECTS = 3;
+
+async function fetchSpecContent(startUrl: string): Promise<string> {
+  let currentUrl = startUrl;
+
+  for (let redirect = 0; redirect <= MAX_REDIRECTS; redirect += 1) {
+    try {
+      await assertImportUrlAllowed(currentUrl);
+    } catch (err) {
+      if (err instanceof UrlNotAllowedError) {
+        throw new OpenApiParseError(err.message, 400);
+      }
+      throw err;
+    }
+
+    // Przekierowania obsługujemy ręcznie, bo adres po przekierowaniu
+    // również musi przejść kontrolę hosta.
+    let res: Response;
+    try {
+      res = await fetch(currentUrl, { redirect: 'manual' });
+    } catch (err) {
+      throw new OpenApiParseError(
+        err instanceof Error ? err.message : 'Błąd sieci',
+        502,
+      );
+    }
+
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get('location');
+      if (!location) {
+        throw new OpenApiParseError(
+          'Serwer odpowiedział przekierowaniem bez adresu docelowego',
+          502,
+        );
+      }
+      currentUrl = new URL(location, currentUrl).toString();
+      continue;
+    }
+
+    if (!res.ok) {
+      throw new OpenApiParseError(
+        `Nie udało się pobrać specyfikacji: ${res.status} ${res.statusText}`,
+        502,
+      );
+    }
+
+    return res.text();
+  }
+
+  throw new OpenApiParseError('Zbyt wiele przekierowań podczas importu', 502);
+}
+
 export async function parseOpenApi(
   input: OpenApiParseInput,
 ): Promise<OpenApiParseResult> {
@@ -93,22 +149,7 @@ export async function parseOpenApi(
     } catch {
       throw new OpenApiParseError(`Nieprawidłowy adres importu: ${input.url}`, 400);
     }
-    try {
-      const res = await fetch(input.url);
-      if (!res.ok) {
-        throw new OpenApiParseError(
-          `Nie udało się pobrać specyfikacji: ${res.status} ${res.statusText}`,
-          502,
-        );
-      }
-      rawSpec = parseSpecContent(await res.text());
-    } catch (err) {
-      if (err instanceof OpenApiParseError) throw err;
-      throw new OpenApiParseError(
-        err instanceof Error ? err.message : 'Błąd sieci',
-        502,
-      );
-    }
+    rawSpec = parseSpecContent(await fetchSpecContent(input.url));
   } else {
     rawSpec = parseSpecContent(input.fileContent!);
   }

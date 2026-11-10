@@ -1,31 +1,19 @@
-import express, { type Express, type Request, type Response } from 'express';
-import cors from 'cors';
-import { config } from './config.js';
-import { authRouter } from './routes/auth.js';
-import { errorHandler } from './middleware/error.js';
-import { collectionsRouter } from './routes/collections.js';
-import { historyRouter } from './routes/history.js';
-import { openapiRouter } from './routes/openapi.js';
+import { build } from './app.js';
+import { config, port } from './config.js';
+import { applySchema } from './db/schema.js';
 
-function build(): Express {
-  const app = express();
-  app.use(cors({ origin: true, credentials: true }));
-  app.use(express.json({ limit: '10mb' }));
-  app.use('/auth', authRouter);
-  app.use(collectionsRouter);
-  app.use(openapiRouter);
-  app.use(historyRouter);
-  app.use(errorHandler);
+async function bootstrap(): Promise<void> {
+  if (config.RUN_MIGRATIONS_ON_START) {
+    await applySchema();
+  }
 
-  app.get('/health', (_req: Request, res: Response) => {
-    res.json({ ok: true, service: 'server' });
+  const app = build();
+  app.listen(port, config.BIND_HOST, () => {
+    console.log(`[server] listening on http://${config.BIND_HOST}:${port}`);
   });
-
-  return app;
 }
 
-const app = build();
-
-app.listen(config.SERVER_PORT, () => {
-  console.log(`[server] listening on http://localhost:${config.SERVER_PORT}`);
+bootstrap().catch((err: unknown) => {
+  console.error('[server] startup failed:', err);
+  process.exit(1);
 });

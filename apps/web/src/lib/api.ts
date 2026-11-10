@@ -16,7 +16,11 @@ import type {
   ApiErrorDto,
 } from '@webapi-tester/shared';
 
-const API_BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:3001';
+// W wdrożeniu publicznym frontend i API są serwowane z jednego adresu,
+// więc API_BASE wskazuje ścieżkę względną. Lokalnie backend działa osobno.
+const API_BASE =
+  import.meta.env.VITE_API_BASE ||
+  (import.meta.env.DEV ? 'http://localhost:3001/api' : '/api');
 
 export class ApiError extends Error {
   constructor(
