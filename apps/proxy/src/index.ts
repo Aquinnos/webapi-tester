@@ -1,5 +1,5 @@
 import express, { type Express, type Request, type Response } from 'express';
-import { config } from './config.js';
+import { agentKey, config } from './config.js';
 import { forwardRouter } from './routes/forward.js';
 
 function build(): Express {
@@ -17,6 +17,15 @@ function build(): Express {
 
 const app = build();
 
-app.listen(config.PROXY_PORT, '127.0.0.1', () => {
-  console.log(`[proxy] listening on http://127.0.0.1:${config.PROXY_PORT}`);
+app.listen(config.PROXY_PORT, config.PROXY_BIND_HOST, () => {
+  console.log(
+    `[proxy] listening on http://${config.PROXY_BIND_HOST}:${config.PROXY_PORT}`,
+  );
+  console.log(`[proxy] klucz agenta: ${agentKey.value}`);
+  console.log(
+    '[proxy] wklej ten klucz w polu "Klucz agenta" w aplikacji webowej',
+  );
+  if (agentKey.source === 'generated') {
+    console.log(`[proxy] klucz zapisany w pliku: ${agentKey.path}`);
+  }
 });

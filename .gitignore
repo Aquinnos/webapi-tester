@@ -8,6 +8,9 @@ coverage/
 .env.local
 .env.*.local
 
+# Klucz współdzielony lokalnego agenta proxy
+.webapi-tester-agent-key
+
 # Logi
 *.log
 npm-debug.log*
