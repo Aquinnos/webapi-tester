@@ -3,7 +3,13 @@ import type { HttpMethod, ProxyForwardRequestDto } from '@webapi-tester/shared';
 import { historyApi } from '../lib/api.js';
 import { decodeBase64ToText } from '../lib/body.js';
 import { ResponseViewer } from './ResponseViewer.js';
-import { AgentError, agentForward } from '../lib/proxy-agent-fetch.js';
+import { agentForward } from '../lib/agent-client.js';
+import { directForward } from '../lib/direct-client.js';
+import { ForwardError } from '../lib/forward-error.js';
+import type {
+  AgentSettings,
+  ForwardMode,
+} from '../lib/agent-settings.js';
 import { HTTP_METHODS, methodClass } from '../lib/http-methods.js';
 import type { ProxyResponseDto } from '@webapi-tester/shared';
 
@@ -29,6 +35,8 @@ export interface RequestDraft {
 interface RequestBuilderProps {
   accessToken?: string;
   seed: RequestSeed | null;
+  mode: ForwardMode;
+  settings: AgentSettings;
   onFormChange?: (draft: RequestDraft) => void;
   onSent?: () => void;
   onSeedApplied?: () => void;
@@ -84,6 +92,8 @@ async function saveHistoryEntry(
 export function RequestBuilder({
   accessToken,
   seed,
+  mode,
+  settings,
   onFormChange,
   onSent,
   onSeedApplied,
@@ -97,6 +107,7 @@ export function RequestBuilder({
   const [baseUrl, setBaseUrl] = useState<string | null>(null);
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   const firstRender = useRef(true);
@@ -124,11 +135,44 @@ export function RequestBuilder({
     setBaseUrl(seed.baseUrl ?? null);
     setResponse(null);
     setError(null);
+    setHint(null);
     onSeedApplied?.();
   }, [seed]);
 
+  async function forward(dto: ProxyForwardRequestDto): Promise<ProxyResponseDto> {
+    const useAgent =
+      mode === 'agent' || (mode === 'auto' && settings.key.length > 0);
+    if (!useAgent) {
+      return directForward(dto);
+    }
+    try {
+      return await agentForward(dto, settings);
+    } catch (err) {
+      if (mode !== 'auto' || !(err instanceof ForwardError) || !err.isNetwork) {
+        throw err;
+      }
+      // Agent nie odpowiada, więc w trybie automatycznym próbujemy wysłać
+      // żądanie wprost z przeglądarki.
+      try {
+        return await directForward(dto);
+      } catch (directErr) {
+        if (directErr instanceof ForwardError) {
+          throw new ForwardError(
+            directErr.message,
+            directErr.kind,
+            directErr.status,
+            directErr.details,
+            directErr.hint ?? err.hint,
+          );
+        }
+        throw directErr;
+      }
+    }
+  }
+
   async function handleSend() {
     setError(null);
+    setHint(null);
     setResponse(null);
     setLoading(true);
 
@@ -142,15 +186,16 @@ export function RequestBuilder({
     };
 
     try {
-      const result = await agentForward(dto);
+      const result = await forward(dto);
       setResponse(result);
       if (accessToken) {
         await saveHistoryEntry(accessToken, dto, result);
         onSent?.();
       }
     } catch (err) {
-      if (err instanceof AgentError) {
+      if (err instanceof ForwardError) {
         setError(err.details ? `${err.message}: ${err.details}` : err.message);
+        setHint(err.hint ?? null);
       } else {
         setError(err instanceof Error ? err.message : 'Nieznany błąd');
       }
@@ -256,7 +301,12 @@ export function RequestBuilder({
           {loading ? 'Wysyłanie...' : 'Wyślij'}
         </button>
 
+        <p className="text-xs text-slate-500 mt-2">
+          Tryb wysyłania: {modeLabel(mode)}
+        </p>
+
         {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
+        {hint && <p className="text-slate-600 text-sm mt-1">{hint}</p>}
       </section>
 
       <section className="card">
@@ -265,4 +315,10 @@ export function RequestBuilder({
       </section>
     </div>
   );
+}
+
+function modeLabel(mode: ForwardMode): string {
+  if (mode === 'agent') return 'zawsze przez lokalnego agenta proxy';
+  if (mode === 'direct') return 'bezpośrednio z przeglądarki';
+  return 'agent, gdy jest dostępny, w pozostałych przypadkach bezpośrednio';
 }

@@ -9,8 +9,18 @@ import { Collections } from './components/Collections.js';
 import { HistoryList } from './components/HistoryList.js';
 import { OpenApiImporter } from './components/OpenApiImporter.js';
 import { AccountPanel } from './components/AccountPanel.js';
+import { AgentPanel } from './components/AgentPanel.js';
 import { loadAuth, clearAuth, type StoredAuth } from './lib/auth.js';
 import { authApi } from './lib/api.js';
+import {
+  loadAgentSettings,
+  saveAgentSettings,
+  loadForwardMode,
+  saveForwardMode,
+  type AgentSettings,
+  type ForwardMode,
+} from './lib/agent-settings.js';
+import { probeAgent, type AgentStatus } from './lib/agent-client.js';
 
 export function App() {
   const [auth, setAuth] = useState<StoredAuth | null>(() => loadAuth());
@@ -19,10 +29,18 @@ export function App() {
   const [showImporter, setShowImporter] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [showAccount, setShowAccount] = useState(false);
+  const [showAgent, setShowAgent] = useState(false);
   const [collectionsKey, setCollectionsKey] = useState(0);
   const [currentRequest, setCurrentRequest] = useState<RequestDraft | null>(
     null,
   );
+  const [agentSettings, setAgentSettings] = useState<AgentSettings>(() =>
+    loadAgentSettings(),
+  );
+  const [forwardMode, setForwardMode] = useState<ForwardMode>(() =>
+    loadForwardMode(),
+  );
+  const [agentStatus, setAgentStatus] = useState<AgentStatus | null>(null);
 
   const accessToken = auth?.accessToken;
 
@@ -61,6 +79,23 @@ export function App() {
 
   function handleSent() {
     setHistoryKey((k) => k + 1);
+  }
+
+  async function handleSaveAgent(
+    settings: AgentSettings,
+    mode: ForwardMode,
+  ) {
+    saveAgentSettings(settings);
+    saveForwardMode(mode);
+    setAgentSettings(settings);
+    setForwardMode(mode);
+    setAgentStatus(await probeAgent(settings));
+    setShowAgent(false);
+  }
+
+  async function handleOpenAgent() {
+    setAgentStatus(await probeAgent(agentSettings));
+    setShowAgent(true);
   }
 
   const handleFormChange = useCallback((draft: RequestDraft) => {
@@ -115,6 +150,16 @@ export function App() {
               <span className="sm:hidden">Import</span>
               <span className="hidden sm:inline">Import OpenAPI</span>
             </button>
+            <button onClick={handleOpenAgent} className="btn-secondary">
+              <span className="flex items-center gap-1">
+                <AgentDot
+                  status={agentStatus}
+                  hasKey={agentSettings.key.length > 0}
+                />
+                <span className="sm:hidden">Agent</span>
+                <span className="hidden sm:inline">Agent proxy</span>
+              </span>
+            </button>
           </div>
         </div>
       </header>
@@ -122,6 +167,8 @@ export function App() {
         <RequestBuilder
           accessToken={accessToken}
           seed={requestSeed}
+          mode={forwardMode}
+          settings={agentSettings}
           onFormChange={handleFormChange}
           onSent={handleSent}
           onSeedApplied={handleSeedApplied}
@@ -170,7 +217,63 @@ export function App() {
           onClose={() => setShowAccount(false)}
         />
       )}
+      {showAgent && (
+        <AgentPanel
+          settings={agentSettings}
+          mode={forwardMode}
+          status={agentStatus}
+          onSave={handleSaveAgent}
+          onClose={() => setShowAgent(false)}
+        />
+      )}
     </div>
+  );
+}
+
+function AgentDot({
+  status,
+  hasKey,
+}: {
+  status: AgentStatus | null;
+  hasKey: boolean;
+}) {
+  if (!status) {
+    return (
+      <span
+        aria-label="Status agenta nieznany"
+        className="inline-block w-2 h-2 rounded-full bg-slate-300"
+      />
+    );
+  }
+  if (status.reachable && status.authorized) {
+    return (
+      <span
+        aria-label="Agent działa"
+        className="inline-block w-2 h-2 rounded-full bg-green-500"
+      />
+    );
+  }
+  if (status.reachable && !hasKey) {
+    return (
+      <span
+        aria-label="Agent działa, brak klucza"
+        className="inline-block w-2 h-2 rounded-full bg-slate-300"
+      />
+    );
+  }
+  if (status.reachable) {
+    return (
+      <span
+        aria-label="Agent działa, klucz nieprawidłowy"
+        className="inline-block w-2 h-2 rounded-full bg-amber-500"
+      />
+    );
+  }
+  return (
+    <span
+      aria-label="Agent nie odpowiada"
+      className="inline-block w-2 h-2 rounded-full bg-red-500"
+    />
   );
 }
 
