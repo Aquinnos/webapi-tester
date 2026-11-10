@@ -7,7 +7,9 @@ services:
     runtime: node
     plan: free
     region: oregon
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @webapi-tester/server build && pnpm --filter @webapi-tester/web build
+    # Render instaluje zależności tylko produkcyjne, a do kompilacji TypeScript
+    # potrzebne są devDependencies (typescript, @types/*). Wymuszamy pełną instalację.
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --no-prod && pnpm --filter @webapi-tester/server build && pnpm --filter @webapi-tester/web build
     startCommand: node apps/server/dist/index.js
     healthCheckPath: /health
     autoDeploy: true
