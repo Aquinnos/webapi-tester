@@ -18,8 +18,8 @@ interface AgentPanelProps {
 }
 
 const MODE_LABELS: Record<ForwardMode, string> = {
-  auto: 'Agent, gdy jest dostępny (poza tym bezpośrednio)',
-  agent: 'Zawsze przez agenta',
+  auto: 'Serwer proxy, gdy jest dostępny (poza tym bezpośrednio)',
+  agent: 'Zawsze przez serwer proxy',
   direct: 'Zawsze bezpośrednio z przeglądarki',
 };
 
@@ -53,7 +53,7 @@ export function AgentPanel({
       <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-lg">
         <div className="flex justify-between items-center p-6 pb-0">
           <h1 className="text-xl font-bold text-slate-800">
-            Lokalny agent proxy
+            Lokalny serwer proxy
           </h1>
           <button
             type="button"
@@ -67,14 +67,14 @@ export function AgentPanel({
 
         <div className="p-6 pt-4 flex flex-col gap-4">
           <p className="text-sm text-slate-600">
-            Agent działa na Twoim komputerze i jest potrzebny przy testowaniu
-            API bez nagłówków CORS oraz adresów w sieci lokalnej. Bez agenta
-            aplikacja wysyła żądania wprost z przeglądarki.
+            Serwer proxy działa na Twoim komputerze i jest potrzebny przy
+            testowaniu API bez nagłówków CORS oraz adresów w sieci lokalnej.
+            Bez serwera proxy aplikacja wysyła żądania wprost z przeglądarki.
           </p>
 
           <label className="flex flex-col gap-1">
             <span className="text-sm font-semibold text-slate-700">
-              Adres agenta
+              Adres serwera proxy
             </span>
             <input
               type="text"
@@ -87,13 +87,13 @@ export function AgentPanel({
 
           <label className="flex flex-col gap-1">
             <span className="text-sm font-semibold text-slate-700">
-              Klucz agenta
+              Klucz serwera proxy
             </span>
             <input
               type="password"
               value={key}
               onChange={(e) => setKey(e.target.value)}
-              placeholder="klucz wypisany w logu startowym agenta"
+              placeholder="klucz wypisany w logu startowym serwera proxy"
               className="field field-mono"
               autoComplete="off"
             />
@@ -134,14 +134,14 @@ export function AgentPanel({
 
           <details className="text-sm text-slate-600">
             <summary className="cursor-pointer">
-              Jak uruchomić agenta?
+              Jak uruchomić serwer proxy?
             </summary>
             <pre className="mt-2 p-3 bg-slate-100 rounded-md overflow-x-auto field-mono text-xs">
               {AGENT_RUN_COMMAND}
             </pre>
             <p className="mt-2">
-              Klucz agenta znajdziesz w logach kontenera albo w terminalu, z
-              którego uruchomiłeś agenta.
+              Klucz serwera proxy znajdziesz w logach kontenera albo w
+              terminalu, z którego uruchomiłeś serwer proxy.
             </p>
           </details>
 
@@ -161,11 +161,11 @@ export function AgentPanel({
 
 function describeStatus(status: AgentStatus | null, hasKey: boolean): string {
   if (!status) return 'Status nieznany.';
-  if (!status.reachable) return 'Agent nie odpowiada.';
+  if (!status.reachable) return 'Serwer proxy nie odpowiada.';
   if (!status.authorized) {
     return hasKey
-      ? 'Agent działa, ale klucz jest nieprawidłowy.'
-      : 'Agent działa, ale nie podano klucza.';
+      ? 'Serwer proxy działa, ale klucz jest nieprawidłowy.'
+      : 'Serwer proxy działa, ale nie podano klucza.';
   }
-  return 'Agent działa i klucz jest prawidłowy.';
+  return 'Serwer proxy działa i klucz jest prawidłowy.';
 }

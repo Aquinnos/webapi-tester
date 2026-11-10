@@ -156,8 +156,8 @@ export function App() {
                   status={agentStatus}
                   hasKey={agentSettings.key.length > 0}
                 />
-                <span className="sm:hidden">Agent</span>
-                <span className="hidden sm:inline">Agent proxy</span>
+                <span className="sm:hidden">Proxy</span>
+                <span className="hidden sm:inline">Serwer proxy</span>
               </span>
             </button>
           </div>
@@ -240,7 +240,7 @@ function AgentDot({
   if (!status) {
     return (
       <span
-        aria-label="Status agenta nieznany"
+        aria-label="Status serwera proxy nieznany"
         className="inline-block w-2 h-2 rounded-full bg-slate-300"
       />
     );
@@ -248,7 +248,7 @@ function AgentDot({
   if (status.reachable && status.authorized) {
     return (
       <span
-        aria-label="Agent działa"
+        aria-label="Serwer proxy działa"
         className="inline-block w-2 h-2 rounded-full bg-green-500"
       />
     );
@@ -256,7 +256,7 @@ function AgentDot({
   if (status.reachable && !hasKey) {
     return (
       <span
-        aria-label="Agent działa, brak klucza"
+        aria-label="Serwer proxy działa, brak klucza"
         className="inline-block w-2 h-2 rounded-full bg-slate-300"
       />
     );
@@ -264,14 +264,14 @@ function AgentDot({
   if (status.reachable) {
     return (
       <span
-        aria-label="Agent działa, klucz nieprawidłowy"
+        aria-label="Serwer proxy działa, klucz nieprawidłowy"
         className="inline-block w-2 h-2 rounded-full bg-amber-500"
       />
     );
   }
   return (
     <span
-      aria-label="Agent nie odpowiada"
+      aria-label="Serwer proxy nie odpowiada"
       className="inline-block w-2 h-2 rounded-full bg-red-500"
     />
   );

@@ -75,6 +75,6 @@ describe('wysylanie bezposrednie z przegladarki', () => {
     const error = await directForward(DTO).catch((err) => err);
     expect(error).toBeInstanceOf(ForwardError);
     expect(error.kind).toBe('cors');
-    expect(error.hint).toContain('agenta proxy');
+    expect(error.hint).toContain('serwer proxy');
   });
 });

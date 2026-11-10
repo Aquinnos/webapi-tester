@@ -79,11 +79,11 @@ export async function agentForward(
 ): Promise<ProxyResponseDto> {
   if (!settings.key) {
     throw new ForwardError(
-      'Brak klucza agenta proxy.',
+      'Brak klucza serwera proxy.',
       'config',
       undefined,
       undefined,
-      'Otworz panel agenta i wklej klucz wypisany w logu startowym agenta.',
+      'Otworz panel serwera proxy i wklej klucz wypisany w logu startowym serwera proxy.',
     );
   }
 
@@ -106,11 +106,11 @@ export async function agentForward(
     );
   } catch {
     throw new ForwardError(
-      'Agent proxy nie odpowiada.',
+      'Serwer proxy nie odpowiada.',
       'network',
       undefined,
       undefined,
-      `Uruchom agenta komenda: ${AGENT_RUN_COMMAND}`,
+      `Uruchom serwer proxy komendą: ${AGENT_RUN_COMMAND}`,
     );
   }
 
@@ -119,12 +119,12 @@ export async function agentForward(
       .json()
       .catch(() => ({ error: res.statusText, details: undefined }));
     const error = new ForwardError(
-      body.error ?? `Agent proxy zwrócił błąd ${res.status}`,
+      body.error ?? `Serwer proxy zwrócił błąd ${res.status}`,
       res.status === 401 ? 'config' : 'agent',
       res.status,
       body.details,
       res.status === 401
-        ? 'Klucz agenta nie zgadza się z kluczem w logu agenta.'
+        ? 'Klucz serwera proxy nie zgadza się z kluczem w logu serwera proxy.'
         : undefined,
     );
     throw error;

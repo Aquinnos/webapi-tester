@@ -23,9 +23,9 @@ app.listen(config.PROXY_PORT, config.PROXY_BIND_HOST, () => {
   console.log(
     `[proxy] listening on http://${config.PROXY_BIND_HOST}:${config.PROXY_PORT}`,
   );
-  console.log(`[proxy] klucz agenta: ${agentKey.value}`);
+  console.log(`[proxy] klucz serwera proxy: ${agentKey.value}`);
   console.log(
-    '[proxy] wklej ten klucz w polu "Klucz agenta" w aplikacji webowej',
+    '[proxy] wklej ten klucz w polu "Klucz serwera proxy" w aplikacji webowej',
   );
   if (agentKey.source === 'generated') {
     console.log(`[proxy] klucz zapisany w pliku: ${agentKey.path}`);

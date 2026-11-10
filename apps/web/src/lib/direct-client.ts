@@ -7,7 +7,7 @@ import { decodeBase64ToBytes, encodeBytesToBase64 } from './body.js';
 
 const ABSOLUTE_URL = /^https?:\/\//i;
 
-function resolveUrl(dto: ProxyForwardRequestDto): string {
+function resolveUrl(dto: ProxyForwardRequestDto): string { 
   if (ABSOLUTE_URL.test(dto.url)) {
     return dto.url;
   }
@@ -55,7 +55,7 @@ export async function directForward(
       'cors',
       undefined,
       undefined,
-      'Najczęstszą przyczyną są brak nagłówków CORS po stronie serwera docelowego albo mieszana zawartość (https do http). Uruchom lokalnego agenta proxy.',
+      'Najczęstszą przyczyną są brak nagłówków CORS po stronie serwera docelowego albo mieszana zawartość (https do http). Uruchom lokalny serwer proxy.',
     );
   }
 

@@ -312,7 +312,7 @@ export function RequestBuilder({
 }
 
 function modeLabel(mode: ForwardMode): string {
-  if (mode === 'agent') return 'zawsze przez lokalnego agenta proxy';
+  if (mode === 'agent') return 'zawsze przez lokalny serwer proxy';
   if (mode === 'direct') return 'bezpośrednio z przeglądarki';
-  return 'agent, gdy jest dostępny, w pozostałych przypadkach bezpośrednio';
+  return 'serwer proxy, gdy jest dostępny, w pozostałych przypadkach bezpośrednio';
 }

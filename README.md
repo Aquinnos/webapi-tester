@@ -1,6 +1,6 @@
 # WebAPI Tester
 
-Webowy tester interfejsów REST API z lokalnym agentem proxy i modułem importu specyfikacji OpenAPI. Prototyp pracy inżynierskiej realizowanej na Wydziale Elektrycznym UMG.
+Webowy tester interfejsów REST API z lokalnym serwerem proxy i modułem importu specyfikacji OpenAPI. Prototyp pracy inżynierskiej realizowanej na Wydziale Elektrycznym UMG.
 
 ## Architektura
 
@@ -10,7 +10,7 @@ Monorepo z trzema procesami uruchamianymi równolegle:
 | --- | --- | --- | --- |
 | Klient webowy | `apps/web` | 5173 | Vite + React + TypeScript + Tailwind |
 | Backend aplikacji | `apps/server` | 3001 | Node.js + Express + TypeScript + PostgreSQL |
-| Lokalny agent proxy | `apps/proxy` | 3002 | Node.js + Express + TypeScript |
+| Lokalny serwer proxy | `apps/proxy` | 3002 | Node.js + Express + TypeScript |
 
 Współdzielone typy DTO w `packages/shared`. API backendu udostępniane jest pod prefiksem `/api`, a pozostałe ścieżki obsługuje frontend (aplikacja jednostronicowa).
 
@@ -32,32 +32,32 @@ pnpm dev
 
 Aplikacja webowa: `http://localhost:5173`
 Backend API: `http://localhost:3001/api`
-Lokalny agent proxy: `http://localhost:3002`
+Lokalny serwer proxy: `http://localhost:3002`
 
-## Lokalny agent proxy
+## Lokalny serwer proxy
 
-Agent proxy przekazuje żądania z aplikacji webowej do wskazanego adresu docelowego i dołącza nagłówki CORS, dzięki którym przeglądarka może odczytać odpowiedź. Jest uruchamiany ręcznie i nie startuje automatycznie wraz z systemem.
+Serwer proxy przekazuje żądania z aplikacji webowej do wskazanego adresu docelowego i dołącza nagłówki CORS, dzięki którym przeglądarka może odczytać odpowiedź. Jest uruchamiany ręcznie i nie startuje automatycznie wraz z systemem.
 
-Agent jest opcjonalny. Aplikacja wysyła żądania wprost z przeglądarki, a agent jest potrzebny wtedy, gdy serwer docelowy nie udostępnia nagłówków CORS albo gdy testowany API działa na `localhost` albo w sieci lokalnej.
+Serwer proxy jest opcjonalny. Aplikacja wysyła żądania wprost z przeglądarki, a serwer proxy jest potrzebny wtedy, gdy serwer docelowy nie udostępnia nagłówków CORS albo gdy testowany API działa na `localhost` albo w sieci lokalnej.
 
 ### Tryby wysyłania żądań
 
-Tryb wybiera się w interfejsie (przycisk **Agent proxy** w pasku u góry):
+Tryb wybiera się w interfejsie (przycisk **Serwer proxy** w pasku u góry):
 
 | Tryb | Zachowanie |
 | --- | --- |
-| Agent, gdy jest dostępny | Żądanie idzie przez agenta, a gdy agent nie odpowiada, aplikacja próbuje wysłać je wprost z przeglądarki |
-| Zawsze przez agenta | Żądanie idzie wyłącznie przez agenta; brak agenta kończy się czytelnym komunikatem |
-| Zawsze bezpośrednio z przeglądarki | Agent nie jest w ogóle używany |
+| Serwer proxy, gdy jest dostępny | Żądanie idzie przez serwer proxy, a gdy nie odpowiada, aplikacja próbuje wysłać je wprost z przeglądarki |
+| Zawsze przez serwer proxy | Żądanie idzie wyłącznie przez serwer proxy; brak serwera proxy kończy się czytelnym komunikatem |
+| Zawsze bezpośrednio z przeglądarki | Serwer proxy nie jest w ogóle używany |
 
-Adres agenta oraz klucz współdzielony wkleja się w tym samym panelu. Klucz można też ustawić w pliku `.env` (zmienne `VITE_PROXY_URL` i `VITE_PROXY_SHARED_SECRET`), a wtedy nie trzeba go wklejać przy każdym uruchomieniu. Ustawienia zapisane w przeglądarce mają pierwszeństwo.
+Adres serwera proxy oraz klucz współdzielony wkleja się w tym samym panelu. Klucz można też ustawić w pliku `.env` (zmienne `VITE_PROXY_URL` i `VITE_PROXY_SHARED_SECRET`), a wtedy nie trzeba go wklejać przy każdym uruchomieniu. Ustawienia zapisane w przeglądarce mają pierwszeństwo.
 
-Przycisk **Agent proxy** pokazuje stan połączenia: zielona kropka oznacza agenta działającego z poprawnym kluczem, bursztynowa błędny klucz, szara brak klucza, czerwona brak odpowiedzi agenta.
+Przycisk **Serwer proxy** pokazuje stan połączenia: zielona kropka oznacza serwer proxy działający z poprawnym kluczem, bursztynowa błędny klucz, szara brak klucza, czerwona brak odpowiedzi serwera proxy.
 
 ### Uruchomienie w kontenerze
 
 ```bash
-# Buduje obraz z repozytorium i uruchamia agenta
+# Buduje obraz z repozytorium i uruchamia serwer proxy
 docker compose up -d proxy
 
 # Klucz współdzielony wypisuje się w logach
@@ -67,8 +67,26 @@ docker compose logs proxy
 ### Uruchomienie z obrazu w GitHub Container Registry
 
 ```bash
-docker run --rm -p 127.0.0.1:3002:3002 ghcr.io/aquinnos/webapi-tester-agent:latest
+docker run --rm -p 127.0.0.1:3002:3002 \
+  -e PROXY_SHARED_SECRET=twoj-staly-klucz \
+  ghcr.io/aquinnos/webapi-tester-agent:latest
 ```
+
+Bez zmiennej `PROXY_SHARED_SECRET` serwer proxy generuje losowy klucz przy każdym uruchomieniu i wypisuje go w logu, więc klucz wklejany do aplikacji przestaje pasować po restarcie kontenera. Podanie własnej zmiennej unieruchamia klucz.
+
+Uwaga na port 3002: jeśli równolegle działa `pnpm dev`, to lokalny serwer proxy z repozytorium zajmuje ten port i kontener nie może się do niego podpiąć. Wtedy albo zatrzymujemy tylko część developerską, albo publikujemy kontener na innym porcie, na przykład `-p 127.0.0.1:3003:3002`, i w aplikacji wpisujemy adres `http://127.0.0.1:3003`.
+
+### Adresy usług lokalnych z kontenera
+
+Serwer proxy uruchomiony w kontenerze wchodzi do sieci wirtualnej Dockera, w której `127.0.0.1` oznacza sam kontener, a nie komputer użytkownika. Adres `localhost` wskazany w polu URL będzie więc zawsze odrzucany komunikatem „Nie udało się połączyć z podanym adresem", nawet gdy usługa na hoście działa poprawnie. Komputer użytkownika jest widoczny w kontenerze pod adresem `host.docker.internal` (Docker Desktop i OrbStack zapewniają ten alias automatycznie).
+
+| Sytuacja | Adres usługi docelowej | Uwagi |
+| --- | --- | --- |
+| Serwer proxy w kontenerze, usługa na hoście | `http://host.docker.internal:5001/...` | Adres usługi podajemy w polu URL w aplikacji |
+| Serwer proxy w kontenerze, usługa w innym kontenerze | `http://nazwa-uslugi:port/...` | Po nazwie usługi w sieci Dockera, nie po `127.0.0.1` |
+| Serwer proxy uruchomiony natywnie na hoście | `http://127.0.0.1:5001/...` | Kontener nie jest wtedy w grze i zwykły `localhost` działa |
+
+Adres samego serwera proxy wpisywany w aplikacji jest zawsze adresem hosta, na przykład `http://127.0.0.1:3002`, ponieważ przeglądarka łączy się z nim przez opublikowany port, a nie przez sieć wewnętrzną kontenera.
 
 ### Uruchomienie z kodu źródłowego
 
@@ -76,17 +94,17 @@ docker run --rm -p 127.0.0.1:3002:3002 ghcr.io/aquinnos/webapi-tester-agent:late
 # Jednorazowa instalacja zależności (w katalogu głównym repozytorium)
 pnpm install
 
-# Uruchomienie samego agenta
+# Uruchomienie samego serwera proxy
 pnpm --filter @webapi-tester/proxy dev
 ```
 
-Agent nasłuchuje na porcie `3002` (zmienny przez `PROXY_PORT`) i na adresie `127.0.0.1` (zmiennym przez `PROXY_BIND_HOST`; wewnątrz kontenera ustawianym na `0.0.0.0`, przy czym port jest publikowany wyłącznie na `127.0.0.1` hosta). Przyjmuje wyłącznie żądania zawierające nagłówek `X-Proxy-Key` zgodny z kluczem współdzielonym; niezgodny lub brakujący nagłówek kończy się odpowiedzią 401. Obsługuje metody `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` i `HEAD` oraz ciała binarne.
+Serwer proxy nasłuchuje na porcie `3002` (zmienny przez `PROXY_PORT`) i na adresie `127.0.0.1` (zmiennym przez `PROXY_BIND_HOST`; wewnątrz kontenera ustawianym na `0.0.0.0`, przy czym port jest publikowany wyłącznie na `127.0.0.1` hosta). Przyjmuje wyłącznie żądania zawierające nagłówek `X-Proxy-Key` zgodny z kluczem współdzielonym; niezgodny lub brakujący nagłówek kończy się odpowiedzią 401. Obsługuje metody `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` i `HEAD` oraz ciała binarne.
 
-Agent udostępnia dwa endpointy pomocnicze: `GET /health` sprawdza, czy agent odpowiada, a `GET /session` z nagłówkiem `X-Proxy-Key` sprawdza, czy klucz jest prawidłowy. Oba zwracają nagłówki CORS, więc przeglądarka może je odczytać.
+Serwer proxy udostępnia dwa endpointy pomocnicze: `GET /health` sprawdza, czy odpowiada, a `GET /session` z nagłówkiem `X-Proxy-Key` sprawdza, czy klucz jest prawidłowy. Oba zwracają nagłówki CORS, więc przeglądarka może je odczytać.
 
 ### Klucz współdzielony
 
-Gdy zmienna `PROXY_SHARED_SECRET` jest ustawiona, agent używa jej jako klucza. Gdy jej nie ma, agent generuje losowy klucz przy pierwszym uruchomieniu, zapisuje go w pliku `PROXY_KEY_FILE` (domyślnie `.webapi-tester-agent-key`) i wypisuje go w logu startowym. Klucz trzeba wkleić w aplikacji webowej w panelu agenta, dlatego nie trafia on do publicznego pakietu aplikacji webowej.
+Gdy zmienna `PROXY_SHARED_SECRET` jest ustawiona, serwer proxy używa jej jako klucza. Gdy jej nie ma, generuje losowy klucz przy pierwszym uruchomieniu, zapisuje go w pliku `PROXY_KEY_FILE` (domyślnie `.webapi-tester-agent-key`) i wypisuje go w logu startowym. Klucz trzeba wkleić w aplikacji webowej w panelu serwera proxy, dlatego nie trafia on do publicznego pakietu aplikacji webowej.
 
 ## Wdrożenie publiczne
 
@@ -96,15 +114,15 @@ Publiczne wdrożenie składa się z trzech elementów:
 | --- | --- | --- |
 | Baza danych | Neon (darmowy PostgreSQL) | Adres w formacie `postgresql://...?sslmode=require` |
 | Backend i frontend | Render, web service (Node 20) | Jeden adres dla API (`/api`) i dla aplikacji |
-| Agent proxy | Na komputerze użytkownika | Obraz z GitHub Container Registry |
+| Serwer proxy | Na komputerze użytkownika | Obraz z GitHub Container Registry |
 
-Backend na Renderze serwuje jednocześnie API pod prefiksem `/api` i zbudowany frontend, więc aplikacja działa pod jednym adresem, a przeglądarka nie potrzebuje dodatkowych uprawnień CORS. Agent proxy celowo nie jest wdrażany publicznie: publicznie dostępny agent przekazujący żądania byłby otwartym proxy, przez które każdy mógłby wysyłać ruch do sieci wewnętrznej.
+Backend na Renderze serwuje jednocześnie API pod prefiksem `/api` i zbudowany frontend, więc aplikacja działa pod jednym adresem, a przeglądarka nie potrzebuje dodatkowych uprawnień CORS. Serwer proxy celowo nie jest wdrażany publicznie: publicznie dostępny serwer przekazujący żądania byłby otwartym proxy, przez które każdy mógłby wysyłać ruch do sieci wewnętrznej.
 
 ### Kroki wdrożenia
 
 1. **Baza na Neon.** Zakład darmowy plan, w sekcji *Connection string* kopiujemy adres PostgreSQL z parametrem `sslmode=require`.
 2. **Usługa na Render.** W panelu wybieramy *New > Blueprint*, wskazujemy to repozytorium i Render odczyta plik `render.yaml`. Uzupełniamy zmienne `POSTGRES_URL` (adres z Neon) oraz opcjonalnie `WEB_ORIGIN` (adres frontu, gdyby frontend był serwowany z innego miejsca). `JWT_SECRET_KEY` Render generuje sam. Adres usługi pojawia się po wdrożeniu, np. `https://webapi-tester.onrender.com`.
-3. **Agent proxy użytkownika.** Obraz `ghcr.io/aquinnos/webapi-tester-agent:latest` uruchamiamy lokalnie, a adres i klucz wklejamy w panelu *Agent proxy* w aplikacji.
+3. **Serwer proxy użytkownika.** Obraz `ghcr.io/aquinnos/webapi-tester-agent:latest` uruchamiamy lokalnie, a adres i klucz wklejamy w panelu *Serwer proxy* w aplikacji.
 
 Baza jest schemą idempotentną, więc migracja (`pnpm migrate`) jest stosowana przy każdym starcie usługi i nie trzeba jej wywoływać ręcznie.
 
@@ -123,7 +141,7 @@ Darmowy plan Render usypia nieużywaną usługę po około 15 minutach, więc pi
 ## Testy
 
 ```bash
-# Wszystkie testy (serwer + agent + aplikacja webowa)
+# Wszystkie testy (serwer + serwer proxy + aplikacja webowa)
 pnpm test
 
 # Testy z pomiarem pokrycia kodu
