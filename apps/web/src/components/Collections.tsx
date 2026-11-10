@@ -1,23 +1,18 @@
 import { useEffect, useState } from 'react';
-import { collectionsApi, ApiError } from '../lib/api';
+import { collectionsApi, ApiError } from '../lib/api.js';
+import { methodClass } from '../lib/http-methods.js';
 import type {
   CollectionDto,
   CollectionWithRequestsDto,
   RequestDto,
-  HttpMethod,
+  UpdateRequestDto,
 } from '@webapi-tester/shared';
-
-export interface RequestSeed {
-  name: string;
-  method: HttpMethod;
-  url: string;
-  headers: Record<string, string>;
-  body: string;
-}
+import type { RequestSeed, RequestDraft } from './RequestBuilder.js';
+import { RequestEditor } from './RequestEditor.js';
 
 interface CollectionsProps {
   accessToken: string;
-  currentRequest: RequestSeed | null;
+  currentRequest: RequestDraft | null;
   onLoadRequest: (seed: RequestSeed) => void;
   refreshKey?: number;
 }
@@ -37,6 +32,10 @@ export function Collections({
   const [showSave, setShowSave] = useState(false);
   const [saveCollectionId, setSaveCollectionId] = useState('');
   const [saveRequestName, setSaveRequestName] = useState('');
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
+  const [savingRequest, setSavingRequest] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -80,6 +79,37 @@ export function Collections({
       setExpanded(detail);
     } catch (err) {
       setError(messageOf(err));
+    }
+  }
+
+  async function handleRenameSave(id: string) {
+    const name = renameValue.trim();
+    if (!name) return;
+    setError(null);
+    try {
+      await collectionsApi.update(accessToken, id, { name });
+      setRenamingId(null);
+      setRenameValue('');
+      await refresh();
+    } catch (err) {
+      setError(messageOf(err));
+    }
+  }
+
+  async function handleUpdateRequest(id: string, dto: UpdateRequestDto) {
+    setError(null);
+    setSavingRequest(true);
+    try {
+      await collectionsApi.updateRequest(accessToken, id, dto);
+      setEditingRequestId(null);
+      if (expanded) {
+        const detail = await collectionsApi.get(accessToken, expanded.id);
+        setExpanded(detail);
+      }
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setSavingRequest(false);
     }
   }
 
@@ -133,6 +163,9 @@ export function Collections({
         url: currentRequest.url,
         headers: currentRequest.headers,
         body: currentRequest.body,
+        ...(currentRequest.baseUrl
+          ? { baseUrl: currentRequest.baseUrl }
+          : {}),
       });
       setShowSave(false);
       setSaveCollectionId('');
@@ -151,20 +184,21 @@ export function Collections({
   }
 
   return (
-    <section className="bg-white p-4 rounded shadow">
-      <h2 className="text-lg font-bold mb-3">Kolekcje</h2>
+    <section className="card">
+      <h2 className="card-title">Kolekcje</h2>
 
       <div className="flex gap-2 mb-3">
         <input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Nowa kolekcja..."
-          className="border p-2 rounded flex-1 text-sm"
+          className="field flex-1"
         />
         <button
           onClick={handleCreate}
           disabled={!newName.trim()}
-          className="bg-blue-600 text-white px-3 rounded text-sm disabled:opacity-50"
+          aria-label="Utwórz kolekcję"
+          className="btn-primary w-11 shrink-0"
         >
           +
         </button>
@@ -173,27 +207,27 @@ export function Collections({
       {currentRequest && (
         <button
           onClick={() => setShowSave((v) => !v)}
-          className="text-sm text-blue-600 hover:underline mb-3"
+          className="text-sm text-blue-700 hover:underline mb-3 px-2 py-1.5"
         >
           {showSave ? 'Anuluj zapis' : 'Zapisz bieżące żądanie do kolekcji'}
         </button>
       )}
 
       {showSave && currentRequest && (
-        <div className="border rounded p-2 mb-3 bg-gray-50">
-          <p className="text-xs text-gray-600 mb-2 font-mono truncate">
+        <div className="border border-slate-200 rounded-lg p-3 mb-3 bg-slate-50">
+          <p className="text-xs text-slate-600 mb-2 font-mono truncate">
             {currentRequest.method} {currentRequest.url}
           </p>
           <input
             value={saveRequestName}
             onChange={(e) => setSaveRequestName(e.target.value)}
             placeholder="Nazwa zapytania"
-            className="border p-1 rounded w-full text-sm mb-2"
+            className="field mb-2"
           />
           <select
             value={saveCollectionId}
             onChange={(e) => setSaveCollectionId(e.target.value)}
-            className="border p-1 rounded w-full text-sm mb-2"
+            className="field mb-2"
           >
             <option value="">Wybierz kolekcję...</option>
             {collections.map((c) => (
@@ -205,7 +239,7 @@ export function Collections({
           <button
             onClick={handleSaveSubmit}
             disabled={!saveCollectionId || !saveRequestName.trim()}
-            className="bg-blue-600 text-white px-3 py-1 rounded text-sm disabled:opacity-50"
+            className="btn-primary"
           >
             Zapisz
           </button>
@@ -216,52 +250,109 @@ export function Collections({
 
       <ul className="space-y-1">
         {collections.map((c) => (
-          <li key={c.id} className="border rounded">
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50">
-              <button
-                onClick={() => handleExpand(c.id)}
-                className="flex-1 text-left text-sm font-medium"
-              >
-                {expandedId === c.id ? '▼' : '▶'} {c.name}
-              </button>
-              <button
-                onClick={() => handleDeleteCollection(c.id)}
-                className="text-red-600 text-xs hover:underline"
-              >
-                Usuń
-              </button>
+          <li key={c.id} className="border border-slate-200 rounded-lg">
+            <div className="flex items-center justify-between p-2 hover:bg-slate-50">
+              {renamingId === c.id ? (
+                <div className="flex flex-wrap gap-1 flex-1 min-w-0">
+                  <input
+                    value={renameValue}
+                    onChange={(e) => setRenameValue(e.target.value)}
+                    autoFocus
+                    className="field flex-1 min-w-[8rem]"
+                  />
+                  <button
+                    onClick={() => handleRenameSave(c.id)}
+                    disabled={!renameValue.trim()}
+                    className="btn-primary px-2 py-1"
+                  >
+                    Zapisz
+                  </button>
+                  <button
+                    onClick={() => setRenamingId(null)}
+                    className="btn-secondary px-2 py-1"
+                  >
+                    Anuluj
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleExpand(c.id)}
+                    className="flex-1 min-w-0 text-left text-sm font-medium py-2"
+                  >
+                    {expandedId === c.id ? '▼' : '▶'} {c.name}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setRenamingId(c.id);
+                      setRenameValue(c.name);
+                    }}
+                    className="text-xs text-blue-700 hover:underline px-2 py-2"
+                  >
+                    Edytuj
+                  </button>
+                  <button
+                    onClick={() => handleDeleteCollection(c.id)}
+                    className="text-xs text-rose-600 hover:underline px-2 py-2"
+                  >
+                    Usuń
+                  </button>
+                </>
+              )}
             </div>
             {expandedId === c.id && expanded && (
-              <ul className="border-t bg-gray-50 px-2 py-1">
+              <ul className="border-t border-slate-200 bg-slate-50 px-2 py-1">
                 {expanded.requests.length === 0 && (
-                  <li className="text-xs text-gray-500 py-1">Pusto</li>
+                  <li className="text-xs text-slate-500 py-1">Pusto</li>
                 )}
-                {expanded.requests.map((r) => (
-                  <li
-                    key={r.id}
-                    className="flex items-center justify-between py-1 text-xs"
-                  >
-                    <button
-                      onClick={() => handleLoadRequest(r)}
-                      className="flex-1 text-left font-mono"
+                {expanded.requests.map((r) =>
+                  editingRequestId === r.id ? (
+                    <li key={r.id}>
+                      <RequestEditor
+                        request={r}
+                        saving={savingRequest}
+                        onSave={handleUpdateRequest}
+                        onCancel={() => setEditingRequestId(null)}
+                      />
+                    </li>
+                  ) : (
+                    <li
+                      key={r.id}
+                      className="flex items-center justify-between py-1 text-xs"
                     >
-                      <span className="text-gray-500 mr-1">{r.method}</span>
-                      {r.name}
-                    </button>
-                    <button
-                      onClick={() => handleDeleteRequest(r.id)}
-                      className="text-red-600 hover:underline ml-2"
-                    >
-                      ×
-                    </button>
-                  </li>
-                ))}
+                      <button
+                        onClick={() => handleLoadRequest(r)}
+                        className="flex-1 min-w-0 text-left font-mono py-2"
+                      >
+                        <span
+                          className={`mr-1 inline-block font-bold px-1.5 py-0.5 rounded text-[10px] ${methodClass(r.method)}`}
+                        >
+                          {r.method}
+                        </span>
+                        {r.name}
+                      </button>
+                      <button
+                        onClick={() => setEditingRequestId(r.id)}
+                        className="text-blue-700 hover:underline px-2 py-2"
+                      >
+                        Edytuj
+                      </button>
+                      <button
+                        onClick={() => handleDeleteRequest(r.id)}
+                        aria-label="Usuń zapytanie"
+                        className="text-rose-600 hover:underline px-2 py-2"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ),
+                )}
               </ul>
             )}
           </li>
         ))}
         {collections.length === 0 && (
-          <li className="text-xs text-gray-500 py-2 text-center">
+          <li className="text-xs text-slate-500 py-4 text-center">
             Brak kolekcji. Utwórz pierwszą powyżej.
           </li>
         )}

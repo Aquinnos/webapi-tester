@@ -1,20 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { HttpMethod, ProxyForwardRequestDto } from '@webapi-tester/shared';
 import { historyApi } from '../lib/api.js';
 import { decodeBase64ToText } from '../lib/body.js';
 import { ResponseViewer } from './ResponseViewer.js';
 import { AgentError, agentForward } from '../lib/proxy-agent-fetch.js';
+import { HTTP_METHODS, methodClass } from '../lib/http-methods.js';
 import type { ProxyResponseDto } from '@webapi-tester/shared';
-
-const METHODS: HttpMethod[] = [
-  'GET',
-  'POST',
-  'PUT',
-  'PATCH',
-  'DELETE',
-  'OPTIONS',
-  'HEAD',
-];
 
 const MAX_HISTORY_BODY = 50_000;
 
@@ -27,9 +18,18 @@ export interface RequestSeed {
   baseUrl?: string;
 }
 
+export interface RequestDraft {
+  method: HttpMethod;
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+  baseUrl?: string;
+}
+
 interface RequestBuilderProps {
   accessToken?: string;
   seed: RequestSeed | null;
+  onFormChange?: (draft: RequestDraft) => void;
   onSent?: () => void;
   onSeedApplied?: () => void;
 }
@@ -84,6 +84,7 @@ async function saveHistoryEntry(
 export function RequestBuilder({
   accessToken,
   seed,
+  onFormChange,
   onSent,
   onSeedApplied,
 }: RequestBuilderProps) {
@@ -97,6 +98,22 @@ export function RequestBuilder({
   const [response, setResponse] = useState<ProxyResponseDto | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    onFormChange?.({
+      method,
+      url,
+      headers: rowsToHeaders(headers),
+      body,
+      ...(baseUrl ? { baseUrl } : {}),
+    });
+  }, [method, url, headers, body, baseUrl, onFormChange]);
 
   useEffect(() => {
     if (!seed) return;
@@ -135,7 +152,7 @@ export function RequestBuilder({
       if (err instanceof AgentError) {
         setError(err.details ? `${err.message}: ${err.details}` : err.message);
       } else {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Nieznany błąd');
       }
     } finally {
       setLoading(false);
@@ -158,16 +175,17 @@ export function RequestBuilder({
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <section className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-bold mb-3">Żądanie</h2>
+      <section className="card">
+        <h2 className="card-title">Żądanie</h2>
 
         <div className="flex gap-2 mb-3">
           <select
             value={method}
             onChange={(e) => setMethod(e.target.value as HttpMethod)}
-            className="border p-2 rounded font-mono bg-white"
+            aria-label="Metoda HTTP"
+            className={`method-select ${methodClass(method)}`}
           >
-            {METHODS.map((m) => (
+            {HTTP_METHODS.map((m) => (
               <option key={m} value={m}>
                 {m}
               </option>
@@ -178,37 +196,41 @@ export function RequestBuilder({
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://api.example.com/endpoint"
-            className="border p-2 rounded flex-1 font-mono text-sm"
+            className="field field-mono flex-1"
           />
         </div>
 
         <div className="mb-3">
           <div className="flex justify-between items-center mb-2">
-            <h3 className="font-semibold text-sm">Nagłówki</h3>
+            <h3 className="text-sm font-semibold text-slate-700">Nagłówki</h3>
             <button
               onClick={addHeader}
-              className="text-sm text-blue-600 hover:underline"
+              className="text-sm text-blue-700 hover:underline touch-target"
             >
               + Dodaj
             </button>
           </div>
           {headers.map((h, i) => (
-            <div key={i} className="flex gap-2 mb-2">
+            <div
+              key={i}
+              className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 mb-2 lg:flex lg:items-center lg:gap-2"
+            >
               <input
                 value={h.key}
                 onChange={(e) => updateHeader(i, 'key', e.target.value)}
-                placeholder="Header"
-                className="border p-1 rounded flex-1 font-mono text-sm"
+                placeholder="Nagłówek"
+                className="field field-mono col-start-1 row-start-1 lg:flex-1"
               />
               <input
                 value={h.value}
                 onChange={(e) => updateHeader(i, 'value', e.target.value)}
-                placeholder="Value"
-                className="border p-1 rounded flex-1 font-mono text-sm"
+                placeholder="Wartość"
+                className="field field-mono col-start-1 row-start-2 lg:flex-1"
               />
               <button
                 onClick={() => removeHeader(i)}
-                className="text-red-600 px-2 hover:bg-red-50 rounded"
+                aria-label="Usuń nagłówek"
+                className="btn-secondary touch-target col-start-2 row-start-1 row-span-2 self-start text-red-600 hover:bg-red-50 hover:border-red-200"
               >
                 ×
               </button>
@@ -217,19 +239,19 @@ export function RequestBuilder({
         </div>
 
         <div className="mb-3">
-          <h3 className="font-semibold text-sm mb-2">Body</h3>
+          <h3 className="text-sm font-semibold text-slate-700 mb-2">Body</h3>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder='{"key": "value"}'
-            className="border p-2 rounded w-full h-32 font-mono text-sm"
+            className="field field-mono h-32 resize-y"
           />
         </div>
 
         <button
           onClick={handleSend}
           disabled={loading}
-          className="bg-blue-600 text-white px-4 py-2 rounded disabled:opacity-50 hover:bg-blue-700"
+          className="btn-primary w-full sm:w-auto"
         >
           {loading ? 'Wysyłanie...' : 'Wyślij'}
         </button>
@@ -237,8 +259,8 @@ export function RequestBuilder({
         {error && <p className="text-red-600 text-sm mt-3">{error}</p>}
       </section>
 
-      <section className="bg-white p-4 rounded shadow">
-        <h2 className="text-lg font-bold mb-3">Odpowiedź</h2>
+      <section className="card">
+        <h2 className="card-title">Odpowiedź</h2>
         <ResponseViewer response={response} />
       </section>
     </div>

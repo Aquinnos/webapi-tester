@@ -156,7 +156,7 @@ describe('parseOpenApi from file content (WF4)', () => {
 
   it('reports a diagnostic cause for malformed JSON', async () => {
     await expect(parseOpenApi({ fileContent: '{ to jest nie json' })).rejects.toThrow(
-      /Invalid JSON/,
+      /Nieprawidłowy JSON lub YAML/,
     );
   });
 
@@ -176,7 +176,7 @@ describe('parseOpenApi from file content (WF4)', () => {
   });
 
   it('requires either url or fileContent', async () => {
-    await expect(parseOpenApi({})).rejects.toThrow(/Either url or fileContent/);
+    await expect(parseOpenApi({})).rejects.toThrow(/Wymagane jest pole url lub fileContent/);
   });
 });
 
@@ -195,7 +195,7 @@ describe('parseOpenApi from URL (WF4)', () => {
 
   it('rejects a malformed import URL', async () => {
     await expect(parseOpenApi({ url: 'to nie jest url' })).rejects.toThrow(
-      /Invalid import URL/,
+      /Nieprawidłowy adres importu/,
     );
   });
 

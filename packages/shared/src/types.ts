@@ -114,16 +114,18 @@ export interface UpdateRequestDto {
 
 // ============ Historia (WF6) ============
 
-export interface HistoryEntryDto {
+export interface HistoryListItemDto {
   id: string;
-  userId: string;
-  requestId: string | null;
   method: HttpMethod;
   url: string;
   status: number;
   durationMs: number;
-  body: string;
   timestamp: string;
+}
+
+export interface HistoryEntryDto extends HistoryListItemDto {
+  userId: string;
+  body: string;
 }
 
 export interface RecordHistoryDto {

@@ -68,10 +68,10 @@ function parseSpecContent(content: string): unknown {
     try {
       return parseYaml(content);
     } catch (yamlErr) {
-      const detail = yamlErr instanceof Error ? yamlErr.message : 'parse error';
-      const fallback = jsonErr instanceof Error ? jsonErr.message : 'parse error';
+      const detail = yamlErr instanceof Error ? yamlErr.message : 'błąd parsowania';
+      const fallback = jsonErr instanceof Error ? jsonErr.message : 'błąd parsowania';
       throw new OpenApiParseError(
-        `Invalid JSON or YAML (JSON: ${fallback}; YAML: ${detail})`,
+        `Nieprawidłowy JSON lub YAML (JSON: ${fallback}; YAML: ${detail})`,
         400,
       );
     }
@@ -82,7 +82,7 @@ export async function parseOpenApi(
   input: OpenApiParseInput,
 ): Promise<OpenApiParseResult> {
   if (!input.url && !input.fileContent) {
-    throw new OpenApiParseError('Either url or fileContent is required', 400);
+    throw new OpenApiParseError('Wymagane jest pole url lub fileContent', 400);
   }
 
   let rawSpec: unknown;
@@ -91,13 +91,13 @@ export async function parseOpenApi(
     try {
       importOrigin = new URL(input.url).origin;
     } catch {
-      throw new OpenApiParseError(`Invalid import URL: ${input.url}`, 400);
+      throw new OpenApiParseError(`Nieprawidłowy adres importu: ${input.url}`, 400);
     }
     try {
       const res = await fetch(input.url);
       if (!res.ok) {
         throw new OpenApiParseError(
-          `Failed to fetch spec: ${res.status} ${res.statusText}`,
+          `Nie udało się pobrać specyfikacji: ${res.status} ${res.statusText}`,
           502,
         );
       }
@@ -105,7 +105,7 @@ export async function parseOpenApi(
     } catch (err) {
       if (err instanceof OpenApiParseError) throw err;
       throw new OpenApiParseError(
-        err instanceof Error ? err.message : 'Network error',
+        err instanceof Error ? err.message : 'Błąd sieci',
         502,
       );
     }
@@ -124,7 +124,7 @@ export async function parseOpenApi(
     )) as typeof api;
   } catch (err) {
     throw new OpenApiParseError(
-      `Invalid OpenAPI spec: ${err instanceof Error ? err.message : 'unknown error'}`,
+      `Nieprawidłowa specyfikacja OpenAPI: ${err instanceof Error ? err.message : 'nieznany błąd'}`,
       400,
     );
   }

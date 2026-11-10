@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent } from 'react';
 import { openApiApi, collectionsApi, ApiError } from '../lib/api.js';
+import { methodClass } from '../lib/http-methods.js';
 import type { GeneratedRequestDto } from '@webapi-tester/shared';
 
 interface OpenApiImporterProps {
@@ -92,25 +93,28 @@ export function OpenApiImporter({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Import specyfikacji OpenAPI</h2>
+    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6">
+        <div className="flex justify-between items-center mb-4 gap-2">
+          <h2 className="text-xl font-bold text-slate-800">
+            Import specyfikacji OpenAPI
+          </h2>
           <button
             onClick={onClose}
-            className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
+            aria-label="Zamknij"
+            className="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2 shrink-0"
           >
             ×
           </button>
         </div>
 
-        <div className="flex gap-2 border-b mb-4">
+        <div className="flex gap-2 border-b border-slate-200 mb-4">
           <button
             onClick={() => setMode('url')}
             className={`px-4 py-2 text-sm ${
               mode === 'url'
-                ? 'border-b-2 border-blue-600 font-semibold'
-                : 'text-gray-600'
+                ? 'border-b-2 border-blue-600 font-semibold text-blue-700'
+                : 'text-slate-500'
             }`}
           >
             Z URL
@@ -119,8 +123,8 @@ export function OpenApiImporter({
             onClick={() => setMode('file')}
             className={`px-4 py-2 text-sm ${
               mode === 'file'
-                ? 'border-b-2 border-blue-600 font-semibold'
-                : 'text-gray-600'
+                ? 'border-b-2 border-blue-600 font-semibold text-blue-700'
+                : 'text-slate-500'
             }`}
           >
             Z pliku
@@ -128,17 +132,17 @@ export function OpenApiImporter({
         </div>
 
         {mode === 'url' ? (
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-col sm:flex-row gap-2 mb-4">
             <input
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               placeholder="https://example.com/openapi.json"
-              className="border p-2 rounded flex-1 font-mono text-sm"
+              className="field field-mono flex-1"
             />
             <button
               onClick={handleImport}
               disabled={loading || !url}
-              className="bg-blue-600 text-white px-4 rounded text-sm disabled:opacity-50"
+              className="btn-primary"
             >
               {loading ? '...' : 'Importuj'}
             </button>
@@ -149,15 +153,15 @@ export function OpenApiImporter({
               type="file"
               accept=".json,.yaml,.yml"
               onChange={handleFileChange}
-              className="mb-2 text-sm"
+              className="mb-2 text-sm block w-full"
             />
             {fileName && (
-              <p className="text-sm text-gray-600 mb-2">Wybrano: {fileName}</p>
+              <p className="text-sm text-slate-600 mb-2">Wybrano: {fileName}</p>
             )}
             <button
               onClick={handleImport}
               disabled={loading || !fileContent}
-              className="bg-blue-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+              className="btn-primary"
             >
               {loading ? '...' : 'Importuj'}
             </button>
@@ -165,21 +169,23 @@ export function OpenApiImporter({
         )}
 
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded p-3 mb-4">
-            <p className="text-red-700 text-sm font-semibold">Błąd importu</p>
-            <p className="text-red-600 text-sm break-words">{error}</p>
+          <div className="bg-rose-50 border border-rose-200 rounded-lg p-3 mb-4">
+            <p className="text-rose-700 text-sm font-semibold">Błąd importu</p>
+            <p className="text-rose-600 text-sm break-words">{error}</p>
           </div>
         )}
 
         {requests.length > 0 && (
           <div>
-            <h3 className="font-bold mb-2">
+            <h3 className="font-bold mb-2 text-slate-800">
               {title} (v{version}) — {requests.length} zapytań
             </h3>
-            <ul className="max-h-48 overflow-y-auto border rounded p-2 bg-gray-50 mb-4 text-sm">
+            <ul className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 bg-slate-50 mb-4 text-sm">
               {requests.map((r, i) => (
-                <li key={i} className="font-mono py-1 flex gap-2">
-                  <span className="text-gray-500 w-12 shrink-0">
+                <li key={i} className="font-mono py-1 flex gap-2 items-center">
+                  <span
+                    className={`shrink-0 font-bold text-[10px] px-1.5 py-0.5 rounded ${methodClass(r.method)}`}
+                  >
                     {r.method}
                   </span>
                   <span className="truncate" title={r.description}>
@@ -189,35 +195,32 @@ export function OpenApiImporter({
               ))}
             </ul>
 
-            <label className="block text-sm font-semibold mb-1">
+            <label className="block text-sm font-semibold mb-1 text-slate-700">
               Nazwa kolekcji
             </label>
             <input
               value={collectionName}
               onChange={(e) => setCollectionName(e.target.value)}
-              className="border p-2 rounded w-full mb-3"
+              className="field mb-3"
             />
 
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-wrap gap-2 items-center">
               {accessToken ? (
                 <button
                   onClick={handleSave}
                   disabled={saving || !collectionName.trim()}
-                  className="bg-green-600 text-white px-4 py-2 rounded text-sm disabled:opacity-50"
+                  className="btn-success"
                 >
                   {saving
                     ? 'Zapisuję...'
                     : `Utwórz kolekcję (${requests.length} zapytań)`}
                 </button>
               ) : (
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-slate-600">
                   Zaloguj się, aby zapisać wygenerowaną kolekcję.
                 </p>
               )}
-              <button
-                onClick={onClose}
-                className="bg-gray-200 px-4 py-2 rounded text-sm"
-              >
+              <button onClick={onClose} className="btn-secondary">
                 Anuluj
               </button>
             </div>

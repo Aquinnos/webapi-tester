@@ -19,7 +19,7 @@ export function requireAuth(
 ): void {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
-    throw new HttpError(401, 'Missing or invalid Authorization header');
+    throw new HttpError(401, 'Brak nagłówka Authorization lub jest nieprawidłowy');
   }
   const token = header.substring('Bearer '.length);
   try {
@@ -27,6 +27,6 @@ export function requireAuth(
     req.user = { id: payload.sub, email: payload.email };
     next();
   } catch (err) {
-    throw new HttpError(401, 'Invalid access token');
+    throw new HttpError(401, 'Nieprawidłowy token dostępu');
   }
 }

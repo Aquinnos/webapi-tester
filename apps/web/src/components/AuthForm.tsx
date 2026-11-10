@@ -33,7 +33,7 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
       if (err instanceof ApiError) {
         setError(err.details ? `${err.message}: ${err.details}` : err.message);
       } else {
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setError(err instanceof Error ? err.message : 'Nieznany błąd');
       }
     } finally {
       setLoading(false);
@@ -41,33 +41,33 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
   }
 
   const card = (
-    <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md">
       <div className="flex justify-between items-center p-6 pb-0">
-        <h1 className="text-xl font-bold">WebAPI Tester</h1>
+        <h1 className="text-xl font-bold text-slate-800">WebAPI Tester</h1>
         {onClose && (
           <button
             type="button"
             onClick={onClose}
             aria-label="Zamknij"
-            className="text-gray-500 hover:text-gray-800 text-2xl leading-none"
+            className="text-slate-400 hover:text-slate-700 text-2xl leading-none px-2"
           >
             &times;
           </button>
         )}
       </div>
       <div className="p-6 pt-4">
-        <div className="flex gap-2 mb-4 border-b">
+        <div className="flex gap-2 mb-4 border-b border-slate-200">
           <button
             type="button"
             onClick={() => setMode('register')}
-            className={`pb-2 ${mode === 'register' ? 'border-b-2 border-blue-600 font-bold' : ''}`}
+            className={`pb-2 px-2 ${mode === 'register' ? 'border-b-2 border-blue-600 font-bold text-blue-700' : 'text-slate-500'}`}
           >
             Rejestracja
           </button>
           <button
             type="button"
             onClick={() => setMode('login')}
-            className={`pb-2 ${mode === 'login' ? 'border-b-2 border-blue-600 font-bold' : ''}`}
+            className={`pb-2 px-2 ${mode === 'login' ? 'border-b-2 border-blue-600 font-bold text-blue-700' : 'text-slate-500'}`}
           >
             Logowanie
           </button>
@@ -79,7 +79,7 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            className="border p-2 rounded"
+            className="field"
           />
           <input
             type="password"
@@ -88,13 +88,9 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
             onChange={(e) => setPassword(e.target.value)}
             required
             minLength={8}
-            className="border p-2 rounded"
+            className="field"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="bg-blue-600 text-white p-2 rounded disabled:opacity-50"
-          >
+          <button type="submit" disabled={loading} className="btn-primary w-full">
             {loading ? '...' : mode === 'register' ? 'Zarejestruj' : 'Zaloguj'}
           </button>
           {error && <p className="text-red-600 text-sm">{error}</p>}
@@ -104,11 +100,11 @@ export function AuthForm({ onSuccess, onClose }: AuthFormProps) {
   );
 
   if (!onClose) {
-    return <div className="max-w-md mx-auto mt-12">{card}</div>;
+    return <div className="max-w-md mx-auto mt-12 px-4">{card}</div>;
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+    <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-50 overflow-y-auto">
       {card}
     </div>
   );

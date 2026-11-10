@@ -210,6 +210,20 @@ describe('przekazywanie zadania (WF7)', () => {
     expect(JSON.parse(decoded)).toEqual({ ok: true });
   });
 
+  it('tlumaczy blad polaczenia z celem na komunikat po polsku', async () => {
+    // Node zglasza nieudane polaczenie jako TypeError o nazwie "TypeError".
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockRejectedValue(new TypeError('fetch failed')),
+    );
+    const res = await request(app)
+      .post('/forward')
+      .set('X-Proxy-Key', VALID_KEY)
+      .send(PAYLOAD);
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('Nie udało się połączyć z podanym adresem');
+  });
+
   it('raportuje blad sieci celu jako 502', async () => {
     vi.stubGlobal(
       'fetch',

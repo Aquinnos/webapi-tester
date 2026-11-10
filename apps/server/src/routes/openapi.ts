@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z, ZodError } from 'zod';
 import { parseOpenApi, OpenApiParseError } from '../services/openapi-parser.js';
+import { formatZodError } from '../lib/zod-errors-pl.js';
 import type {
   OpenApiImportSuccessDto,
   OpenApiImportErrorDto,
@@ -29,8 +30,8 @@ openapiRouter.post('/openapi/import', async (req, res, next) => {
       result = await parseOpenApi({ fileContent: dto.fileContent });
     } else {
       const errDto: OpenApiImportErrorDto = {
-        error: 'Bad request',
-        details: 'Either url or fileContent is required',
+        error: 'Nieprawidłowe żądanie',
+        details: 'Wymagane jest pole url lub fileContent',
       };
       return res.status(400).json(errDto);
     }
@@ -40,17 +41,15 @@ openapiRouter.post('/openapi/import', async (req, res, next) => {
   } catch (err) {
     if (err instanceof OpenApiParseError) {
       const errDto: OpenApiImportErrorDto = {
-        error: 'OpenAPI parse failed',
+        error: 'Nie udało się przetworzyć specyfikacji OpenAPI',
         details: err.message,
       };
       return res.status(err.status).json(errDto);
     }
     if (err instanceof ZodError) {
       const errDto: OpenApiImportErrorDto = {
-        error: 'Validation failed',
-        details: err.issues
-          .map((i) => `${i.path.join('.') || 'body'}: ${i.message}`)
-          .join('; '),
+        error: 'Błąd walidacji',
+        details: formatZodError(err),
       };
       return res.status(400).json(errDto);
     }

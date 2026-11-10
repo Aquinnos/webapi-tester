@@ -1,3 +1,94 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-slate-100 text-slate-800 antialiased;
+    font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+      'Helvetica Neue', Arial, sans-serif;
+  }
+}
+
+@layer components {
+  /* Karta to podstawowy nośnik treści w aplikacji. */
+  .card {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm p-4;
+  }
+
+  .card-title {
+    @apply text-base font-semibold text-slate-800 mb-3;
+  }
+
+  /* Pole formularza. min-w-0 jest konieczne, bo bez niego inputy flexowe
+     nie kurczą się poniżej szerokości wynikającej z domyślnego atrybutu size. */
+  .field {
+    @apply w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 py-2
+      text-sm text-slate-800 placeholder:text-slate-400
+      focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100;
+  }
+
+  .field-mono {
+    @apply font-mono;
+  }
+
+  /* Select metody HTTP jest wypełniony kolorem metody, dlatego strzałka
+     jest rysowana w CSS, a nie przez natywny widget przeglądarki. */
+  .method-select {
+    @apply shrink-0 appearance-none rounded-lg border-0 px-3 py-2 pr-8
+      font-mono text-sm font-semibold focus:outline-none focus:ring-2
+      focus:ring-blue-300;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23ffffff'%3E%3Cpath fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z' clip-rule='evenodd'/%3E%3C/svg%3E");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.1em 1.1em;
+  }
+
+  .method-select option {
+    @apply bg-white text-slate-800;
+  }
+
+  /* Minymalny cel dotykowy dla palca na ekranie telefonu. */
+  .touch-target {
+    @apply min-h-[40px] min-w-[40px];
+  }
+
+  .link-quiet {
+    @apply text-xs text-slate-500 hover:text-slate-800 hover:underline;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2
+      text-sm font-medium transition-colors disabled:cursor-not-allowed
+      disabled:opacity-50;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2
+      text-sm font-medium transition-colors disabled:cursor-not-allowed
+      disabled:opacity-50 bg-blue-600 text-white hover:bg-blue-700;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2
+      text-sm font-medium transition-colors disabled:cursor-not-allowed
+      disabled:opacity-50 border border-slate-300 bg-white text-slate-700
+      hover:bg-slate-50;
+  }
+
+  .btn-success {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2
+      text-sm font-medium transition-colors disabled:cursor-not-allowed
+      disabled:opacity-50 bg-emerald-600 text-white hover:bg-emerald-700;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1 rounded-lg px-3 py-2
+      text-sm font-medium transition-colors disabled:cursor-not-allowed
+      disabled:opacity-50 bg-red-600 text-white hover:bg-red-700;
+  }
+}

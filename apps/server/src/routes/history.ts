@@ -5,6 +5,7 @@ import { requireAuth } from '../middleware/auth.js';
 import { HttpError } from '../middleware/error.js';
 import type {
   HistoryEntryDto,
+  HistoryListItemDto,
   RecordHistoryDto,
   RecordHistoryResultDto,
 } from '@webapi-tester/shared';
@@ -24,7 +25,6 @@ const recordSchema = z.object({
 interface HistoryRow {
   id: number;
   user_id: number;
-  request_id: number | null;
   method: string;
   url: string;
   status_code: number;
@@ -33,17 +33,22 @@ interface HistoryRow {
   executed_at: Date;
 }
 
-function historyFromRow(row: HistoryRow): HistoryEntryDto {
+function historyListItemFromRow(row: HistoryRow): HistoryListItemDto {
   return {
     id: String(row.id),
-    userId: String(row.user_id),
-    requestId: row.request_id !== null ? String(row.request_id) : null,
-    method: row.method as HistoryEntryDto['method'],
+    method: row.method as HistoryListItemDto['method'],
     url: row.url,
     status: row.status_code,
     durationMs: row.response_time_ms,
-    body: row.response_body,
     timestamp: row.executed_at.toISOString(),
+  };
+}
+
+function historyFromRow(row: HistoryRow): HistoryEntryDto {
+  return {
+    ...historyListItemFromRow(row),
+    userId: String(row.user_id),
+    body: row.response_body,
   };
 }
 
@@ -52,15 +57,36 @@ historyRouter.get('/history', requireAuth, async (req, res, next) => {
     const pool = getPool();
     const userId = Number(req.user!.id);
     const result = await pool.query<HistoryRow>(
-      `SELECT id, user_id, request_id, method, url, status_code,
+      `SELECT id, user_id, method, url, status_code,
                 response_time_ms, response_body, executed_at
          FROM request_history
          WHERE user_id = $1
          ORDER BY executed_at DESC
-         LIMIT 200`,
+         LIMIT 1000`,
       [userId],
     );
-    res.json({ entries: result.rows.map(historyFromRow) });
+    res.json({ entries: result.rows.map(historyListItemFromRow) });
+  } catch (err) {
+    next(err);
+  }
+});
+
+historyRouter.get('/history/:id', requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new HttpError(400, 'Nieprawidłowy identyfikator');
+    const pool = getPool();
+    const userId = Number(req.user!.id);
+    const result = await pool.query<HistoryRow>(
+      `SELECT id, user_id, method, url, status_code,
+                response_time_ms, response_body, executed_at
+         FROM request_history
+         WHERE id = $1 AND user_id = $2`,
+      [id, userId],
+    );
+    const row = result.rows[0];
+    if (!row) throw new HttpError(404, 'Wpis historii nie został znaleziony');
+    res.json(historyFromRow(row));
   } catch (err) {
     next(err);
   }
@@ -73,8 +99,8 @@ historyRouter.post('/history', requireAuth, async (req, res, next) => {
     const userId = Number(req.user!.id);
     const result = await pool.query<{ id: number; executed_at: Date }>(
       `INSERT INTO request_history
-         (user_id, request_id, method, url, status_code, response_time_ms, response_body)
-       VALUES ($1, NULL, $2, $3, $4, $5, $6)
+         (user_id, method, url, status_code, response_time_ms, response_body)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, executed_at`,
       [
         userId,
@@ -100,7 +126,7 @@ historyRouter.delete('/history/:id', requireAuth, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (!Number.isInteger(id) || id <= 0)
-      throw new HttpError(400, 'Invalid id');
+      throw new HttpError(400, 'Nieprawidłowy identyfikator');
     const pool = getPool();
     const userId = Number(req.user!.id);
     const result = await pool.query(
@@ -108,7 +134,7 @@ historyRouter.delete('/history/:id', requireAuth, async (req, res, next) => {
       [id, userId],
     );
     if (result.rowCount === 0)
-      throw new HttpError(404, 'History entry not found');
+      throw new HttpError(404, 'Wpis historii nie został znaleziony');
     res.sendStatus(204);
   } catch (err) {
     next(err);

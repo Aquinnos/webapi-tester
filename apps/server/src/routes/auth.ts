@@ -11,6 +11,7 @@ import { HttpError } from '../middleware/error.js';
 import { requireAuth } from '../middleware/auth.js';
 import {
   isRefreshTokenActive,
+  revokeAllRefreshTokens,
   revokeRefreshToken,
   storeRefreshToken,
 } from '../services/refresh-token-store.js';
@@ -24,6 +25,15 @@ const credentialsSchema = z.object({
 });
 
 const refreshSchema = z.object({ refreshToken: z.string() });
+
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(8),
+});
+
+const deleteAccountSchema = z.object({
+  password: z.string().min(1),
+});
 
 interface UserRow {
   id: number;
@@ -56,7 +66,7 @@ async function findUserById(id: number): Promise<UserRow> {
     [id],
   );
   const row = result.rows[0];
-  if (!row) throw new HttpError(401, 'User not found');
+  if (!row) throw new HttpError(401, 'Użytkownik nie został znaleziony');
   return row;
 }
 
@@ -75,7 +85,7 @@ authRouter.post('/register', async (req, res, next) => {
         [email, password_hash],
       );
       const inserted = result.rows[0];
-      if (!inserted) throw new HttpError(500, 'Insert returned no row');
+      if (!inserted) throw new HttpError(500, 'Wstawienie nie zwróciło wiersza');
       row = inserted;
     } catch (err: unknown) {
       if (
@@ -84,7 +94,7 @@ authRouter.post('/register', async (req, res, next) => {
         'code' in err &&
         err.code === '23505'
       ) {
-        throw new HttpError(409, 'Email already registered');
+        throw new HttpError(409, 'E-mail jest już zarejestrowany');
       }
       throw err;
     }
@@ -104,7 +114,7 @@ authRouter.post('/login', async (req, res, next) => {
     );
     const row = result.rows[0];
     if (!row || !(await verifyPassword(password, row.password_hash))) {
-      throw new HttpError(401, 'Invalid credentials');
+      throw new HttpError(401, 'Nieprawidłowy e-mail lub hasło');
     }
     res.json(await issueSession(row));
   } catch (e) {
@@ -119,11 +129,11 @@ authRouter.post('/refresh', async (req, res, next) => {
     try {
       decoded = verifyRefreshToken(refreshToken);
     } catch {
-      throw new HttpError(401, 'Invalid refresh token');
+      throw new HttpError(401, 'Nieprawidłowy token odnowienia');
     }
     const userId = Number(decoded.sub);
     if (!(await isRefreshTokenActive(userId, refreshToken))) {
-      throw new HttpError(401, 'Refresh token revoked or expired');
+      throw new HttpError(401, 'Token odnowienia został unieważniony lub wygasł');
     }
     await revokeRefreshToken(userId, refreshToken);
     const row = await findUserById(userId);
@@ -137,6 +147,47 @@ authRouter.post('/logout', requireAuth, async (req, res, next) => {
   try {
     const { refreshToken } = refreshSchema.parse(req.body);
     await revokeRefreshToken(Number(req.user!.id), refreshToken);
+    res.sendStatus(204);
+  } catch (e) {
+    next(e);
+  }
+});
+
+// Zmiana hasła odcina pozostałe sesje: tokeny odnowienia zapisane w innych
+// przeglądarkach przestają działać, a bieżąca sesja otrzymuje świeżą parę.
+authRouter.post('/change-password', requireAuth, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = changePasswordSchema.parse(req.body);
+    const userId = Number(req.user!.id);
+    const row = await findUserById(userId);
+
+    if (!(await verifyPassword(currentPassword, row.password_hash))) {
+      throw new HttpError(401, 'Obecne hasło jest nieprawidłowe');
+    }
+
+    await getPool().query('UPDATE users SET password_hash = $1 WHERE id = $2', [
+      await hashPassword(newPassword),
+      userId,
+    ]);
+    await revokeAllRefreshTokens(userId);
+
+    res.json(await issueSession(row));
+  } catch (e) {
+    next(e);
+  }
+});
+
+authRouter.delete('/me', requireAuth, async (req, res, next) => {
+  try {
+    const { password } = deleteAccountSchema.parse(req.body);
+    const userId = Number(req.user!.id);
+    const row = await findUserById(userId);
+
+    if (!(await verifyPassword(password, row.password_hash))) {
+      throw new HttpError(401, 'Hasło jest nieprawidłowe');
+    }
+
+    await getPool().query('DELETE FROM users WHERE id = $1', [userId]);
     res.sendStatus(204);
   } catch (e) {
     next(e);

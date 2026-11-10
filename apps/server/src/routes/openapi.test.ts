@@ -106,8 +106,8 @@ describe('POST /openapi/import (file)', () => {
       .post('/openapi/import')
       .send({ fileContent: '{not valid json' });
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('OpenAPI parse failed');
-    expect(res.body.details).toMatch(/Invalid JSON/);
+    expect(res.body.error).toBe('Nie udało się przetworzyć specyfikacji OpenAPI');
+    expect(res.body.details).toMatch(/Nieprawidłowy JSON lub YAML/);
   });
 
   it('returns diagnostic on valid JSON but invalid spec', async () => {
@@ -117,7 +117,7 @@ describe('POST /openapi/import (file)', () => {
         fileContent: JSON.stringify({ openapi: '3.0.0' /* no info, no paths */ }),
       });
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('OpenAPI parse failed');
+    expect(res.body.error).toBe('Nie udało się przetworzyć specyfikacji OpenAPI');
   });
 
   it('returns empty requests for valid spec with no endpoints', async () => {
@@ -138,7 +138,7 @@ describe('POST /openapi/import (file)', () => {
   it('returns 400 when neither url nor fileContent is provided', async () => {
     const res = await request(app).post('/openapi/import').send({});
     expect(res.status).toBe(400);
-    expect(res.body.error).toBe('Bad request');
+    expect(res.body.error).toBe('Nieprawidłowe żądanie');
   });
 
   it('handles relative server url (path-only base)', async () => {
@@ -218,7 +218,7 @@ describe('POST /openapi/import (url)', () => {
       .post('/openapi/import')
       .send({ url: 'http://invalid.example.test/spec.json' });
     expect(res.status).toBe(502);
-    expect(res.body.error).toBe('OpenAPI parse failed');
+    expect(res.body.error).toBe('Nie udało się przetworzyć specyfikacji OpenAPI');
   });
 
   it('returns generated requests from mocked URL', async () => {

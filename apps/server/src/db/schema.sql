@@ -41,7 +41,6 @@ ALTER TABLE requests ADD COLUMN IF NOT EXISTS base_url TEXT;
 CREATE TABLE IF NOT EXISTS request_history (
   id               SERIAL PRIMARY KEY,
   user_id          INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  request_id       INTEGER REFERENCES requests(id) ON DELETE SET NULL,
   method           VARCHAR(16) NOT NULL CHECK (method IN ('GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD')),
   url              TEXT NOT NULL,
   status_code      INTEGER NOT NULL,
@@ -50,3 +49,5 @@ CREATE TABLE IF NOT EXISTS request_history (
   executed_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_request_history_user_executed ON request_history(user_id, executed_at DESC);
+
+ALTER TABLE request_history DROP COLUMN IF EXISTS request_id;

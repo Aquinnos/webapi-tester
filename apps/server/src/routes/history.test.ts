@@ -65,8 +65,8 @@ async function seedHistory(
   status: number = 200,
 ): Promise<number> {
   const result = await getPool().query<{ id: number }>(
-    `INSERT INTO request_history (user_id, request_id, method, url, status_code, response_time_ms, response_body, executed_at)
-       VALUES ($1, NULL, 'GET', $2, $3, 100, '', $4)
+    `INSERT INTO request_history (user_id, method, url, status_code, response_time_ms, response_body, executed_at)
+       VALUES ($1, 'GET', $2, $3, 100, '', $4)
        RETURNING id`,
     [userId, url, status, executedAt],
   );
@@ -192,7 +192,6 @@ describe('POST /history', () => {
       url: 'https://example.com/api/items/7',
       status: 204,
       durationMs: 55,
-      body: '',
     });
   });
 
@@ -209,10 +208,13 @@ describe('POST /history', () => {
         body: long,
       });
 
-    const res = await request(app)
+    const list = await request(app)
       .get('/history')
       .set('Authorization', `Bearer ${aliceToken}`);
-    expect(res.body.entries[0].body).toHaveLength(50_000);
+    const detail = await request(app)
+      .get(`/history/${list.body.entries[0].id}`)
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(detail.body.body).toHaveLength(50_000);
   });
 
   it('rejects an unsupported method with 400', async () => {
@@ -248,6 +250,92 @@ describe('POST /history', () => {
       .post('/history')
       .set('Authorization', `Bearer ${aliceToken}`)
       .send({ method: 'GET', url: '', status: 200, durationMs: 10, body: '' });
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('GET /history (lekka lista)', () => {
+  it('does not include the response body in list entries', async () => {
+    await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'GET',
+        url: 'https://example.com/trim',
+        status: 200,
+        durationMs: 12,
+        body: 'y'.repeat(4000),
+      });
+
+    const res = await request(app)
+      .get('/history')
+      .set('Authorization', `Bearer ${aliceToken}`);
+
+    expect(res.body.entries).toHaveLength(1);
+    expect(res.body.entries[0]).not.toHaveProperty('body');
+    expect(res.body.entries[0]).not.toHaveProperty('userId');
+  });
+});
+
+describe('GET /history/:id', () => {
+  it('requires auth', async () => {
+    const res = await request(app).get('/history/1');
+    expect(res.status).toBe(401);
+  });
+
+  it('returns the entry with its response body', async () => {
+    await request(app)
+      .post('/history')
+      .set('Authorization', `Bearer ${aliceToken}`)
+      .send({
+        method: 'POST',
+        url: 'https://example.com/detail',
+        status: 201,
+        durationMs: 77,
+        body: '{"created":true}',
+      });
+
+    const list = await request(app)
+      .get('/history')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    const id = list.body.entries[0].id;
+
+    const res = await request(app)
+      .get(`/history/${id}`)
+      .set('Authorization', `Bearer ${aliceToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      id,
+      method: 'POST',
+      url: 'https://example.com/detail',
+      status: 201,
+      durationMs: 77,
+      body: '{"created":true}',
+    });
+    expect(res.body.userId).toBe(String(aliceId));
+    expect(res.body.timestamp).toBeTruthy();
+  });
+
+  it('returns 404 for another user entry', async () => {
+    const id = await seedHistory(aliceId, 'http://a.com', new Date());
+    const res = await request(app)
+      .get(`/history/${id}`)
+      .set('Authorization', `Bearer ${bobToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 for a non-existent id', async () => {
+    const res = await request(app)
+      .get('/history/999999')
+      .set('Authorization', `Bearer ${aliceToken}`);
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 for a non-numeric id', async () => {
+    const res = await request(app)
+      .get('/history/abc')
+      .set('Authorization', `Bearer ${aliceToken}`);
     expect(res.status).toBe(400);
   });
 });

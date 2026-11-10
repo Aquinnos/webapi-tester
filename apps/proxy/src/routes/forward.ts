@@ -54,7 +54,7 @@ forwardRouter.options('/forward', (_req, res) => {
 forwardRouter.post('/forward', async (req, res) => {
   const providedKey = req.header('X-Proxy-Key');
   if (!providedKey || !keysMatch(providedKey, config.PROXY_SHARED_SECRET)) {
-    sendError(res, 401, 'Invalid or missing X-Proxy-Key');
+    sendError(res, 401, 'Nieprawidłowy lub brak nagłówka X-Proxy-Key');
     return;
   }
 
@@ -63,7 +63,7 @@ forwardRouter.post('/forward', async (req, res) => {
     sendError(
       res,
       400,
-      'Invalid request payload',
+      'Nieprawidłowa treść żądania',
       parsed.error.issues
         .map((issue) => `${issue.path.join('.')}: ${issue.message}`)
         .join('; '),
@@ -79,6 +79,6 @@ forwardRouter.post('/forward', async (req, res) => {
       sendError(res, err.status, err.message);
       return;
     }
-    sendError(res, 502, err instanceof Error ? err.message : 'Unknown error');
+    sendError(res, 502, err instanceof Error ? err.message : 'Nieznany błąd');
   }
 });

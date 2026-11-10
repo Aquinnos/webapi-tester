@@ -1,4 +1,5 @@
 import type {
+  AuthSuccessDto,
   CollectionDto,
   CollectionWithRequestsDto,
   RequestDto,
@@ -32,6 +33,24 @@ export const authApi = {
     return api<void>('/auth/logout', {
       method: 'POST',
       body: { refreshToken },
+      accessToken,
+    });
+  },
+  changePassword(
+    accessToken: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<AuthSuccessDto> {
+    return api<AuthSuccessDto>('/auth/change-password', {
+      method: 'POST',
+      body: { currentPassword, newPassword },
+      accessToken,
+    });
+  },
+  deleteAccount(accessToken: string, password: string): Promise<void> {
+    return api<void>('/auth/me', {
+      method: 'DELETE',
+      body: { password },
       accessToken,
     });
   },

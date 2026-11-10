@@ -64,12 +64,17 @@ export async function forwardRequest(
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       throw new AgentForwardError(
-        `Request timed out after ${timeoutMs} ms`,
+        `Przekroczono czas oczekiwania na odpowiedź (${timeoutMs} ms)`,
         504,
       );
     }
+    // Node zgłasza nieudane połączenie jako TypeError z komunikatem "fetch failed",
+    // który sam w sobie nic nie mówi użytkownikowi o przyczynie.
+    if (error instanceof TypeError) {
+      throw new AgentForwardError('Nie udało się połączyć z podanym adresem');
+    }
     throw new AgentForwardError(
-      error instanceof Error ? error.message : 'Unknown error',
+      error instanceof Error ? error.message : 'Nieznany błąd',
     );
   } finally {
     clearTimeout(timeoutId);

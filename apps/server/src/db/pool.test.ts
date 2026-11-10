@@ -56,12 +56,4 @@ describe('database pool + migrations', () => {
       'users',
     ]);
   });
-
-  it('history FK to requests allows NULL (ad-hoc queries)', async () => {
-    const pool = getPool();
-    const result = await pool.query<CountRow>(
-      `SELECT count(*)::text AS count FROM request_history WHERE request_id IS NULL`,
-    );
-    expect(result.rows[0]?.count).toBe('0');
-  });
 });

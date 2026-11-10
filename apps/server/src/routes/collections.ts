@@ -51,7 +51,7 @@ interface RequestRow {
 function parseId(value: string): number {
   const id = Number(value);
   if (!Number.isInteger(id) || id <= 0) {
-    throw new HttpError(400, 'Invalid id');
+    throw new HttpError(400, 'Nieprawidłowy identyfikator');
   }
   return id;
 }
@@ -107,7 +107,7 @@ collectionsRouter.post('/collections', requireAuth, async (req, res, next) => {
       [userId, dto.name],
     );
     const row = result.rows[0];
-    if (!row) throw new HttpError(500, 'Insert returned no row');
+    if (!row) throw new HttpError(500, 'Wstawienie nie zwróciło wiersza');
     res.status(201).json(collectionFromRow(row));
   } catch (err) {
     next(err);
@@ -130,7 +130,7 @@ collectionsRouter.get(
         [id, userId],
       );
       const collection = collResult.rows[0];
-      if (!collection) throw new HttpError(404, 'Collection not found');
+      if (!collection) throw new HttpError(404, 'Kolekcja nie została znaleziona');
 
       const reqResult = await pool.query<RequestRow>(
         `SELECT id, collection_id, name, method, url, base_url, headers, body, created_at
@@ -158,7 +158,7 @@ collectionsRouter.patch(
     try {
       const id = parseId(req.params.id!);
       const dto: UpdateCollectionDto = collectionSchema.parse(req.body);
-      if (!dto.name) throw new HttpError(400, 'name is required');
+      if (!dto.name) throw new HttpError(400, 'nazwa jest wymagana');
       const pool = getPool();
       const userId = Number(req.user!.id);
       const result = await pool.query<CollectionRow>(
@@ -168,7 +168,7 @@ collectionsRouter.patch(
         [dto.name, id, userId],
       );
       const row = result.rows[0];
-      if (!row) throw new HttpError(404, 'Collection not found');
+      if (!row) throw new HttpError(404, 'Kolekcja nie została znaleziona');
       res.json(collectionFromRow(row));
     } catch (err) {
       next(err);
@@ -189,7 +189,7 @@ collectionsRouter.delete(
         [id, userId],
       );
       if (result.rowCount === 0)
-        throw new HttpError(404, 'Collection not found');
+        throw new HttpError(404, 'Kolekcja nie została znaleziona');
       res.sendStatus(204);
     } catch (err) {
       next(err);
@@ -212,7 +212,7 @@ collectionsRouter.post(
         [id, userId],
       );
       if (ownerCheck.rowCount === 0)
-        throw new HttpError(404, 'Collection not found');
+        throw new HttpError(404, 'Kolekcja nie została znaleziona');
 
       const result = await pool.query<RequestRow>(
         `INSERT INTO requests (collection_id, name, method, url, base_url, headers, body)
@@ -229,7 +229,7 @@ collectionsRouter.post(
         ],
       );
       const row = result.rows[0];
-      if (!row) throw new HttpError(500, 'Insert returned no row');
+      if (!row) throw new HttpError(500, 'Wstawienie nie zwróciło wiersza');
       res.status(201).json(requestFromRow(row));
     } catch (err) {
       next(err);
@@ -268,7 +268,7 @@ collectionsRouter.patch(
         ],
       );
       const row = result.rows[0];
-      if (!row) throw new HttpError(404, 'Request not found');
+      if (!row) throw new HttpError(404, 'Zapytanie nie zostało znalezione');
       res.json(requestFromRow(row));
     } catch (err) {
       next(err);
@@ -292,7 +292,7 @@ collectionsRouter.delete(
            AND c.user_id = $2`,
         [id, userId],
       );
-      if (result.rowCount === 0) throw new HttpError(404, 'Request not found');
+      if (result.rowCount === 0) throw new HttpError(404, 'Zapytanie nie zostało znalezione');
       res.sendStatus(204);
     } catch (err) {
       next(err);
