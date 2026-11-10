@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@apidevtools/swagger-parser": "^13",
+    "@apidevtools/swagger-parser": "^10.1.1",
     "@webapi-tester/shared": "workspace:*",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
