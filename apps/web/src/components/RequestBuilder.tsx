@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { HttpMethod, ProxyForwardRequestDto } from '@webapi-tester/shared';
 import { historyApi } from '../lib/api.js';
 import { decodeBase64ToText } from '../lib/body.js';
@@ -110,13 +110,7 @@ export function RequestBuilder({
   const [hint, setHint] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const firstRender = useRef(true);
-
   useEffect(() => {
-    if (firstRender.current) {
-      firstRender.current = false;
-      return;
-    }
     onFormChange?.({
       method,
       url,
