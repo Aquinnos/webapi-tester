@@ -5,15 +5,6 @@ import { config } from '../config.js';
 import { forwardRequest, AgentForwardError } from '../services/forward.js';
 import type { ProxyForwardRequestDto } from '@webapi-tester/shared';
 
-// CORS headers to allow cross-origin requests to the proxy.
-const CORS_HEADERS: Record<string, string> = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods':
-    'GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD',
-  'Access-Control-Allow-Headers': 'Content-Type, X-Proxy-Key',
-  'Access-Control-Max-Age': '600',
-};
-
 // keysMatch function to compare the provided key with the expected key in a timing-safe manner.
 function keysMatch(provided: string, expected: string): boolean {
   const a = Buffer.from(provided);
@@ -42,13 +33,19 @@ function sendError(
 
 export const forwardRouter: ReturnType<typeof Router> = Router();
 
-forwardRouter.use((_req, res, next) => {
-  res.set(CORS_HEADERS);
-  next();
+forwardRouter.options('*', (_req, res) => {
+  res.status(204).end();
 });
 
-forwardRouter.options('/forward', (_req, res) => {
-  res.status(204).end();
+// Endpoint sesji pozwala aplikacji webowej sprawdzić klucz bez wysyłania
+// realnego żądania do celu.
+forwardRouter.get('/session', (req, res) => {
+  const providedKey = req.header('X-Proxy-Key');
+  if (!providedKey || !keysMatch(providedKey, config.PROXY_SHARED_SECRET)) {
+    sendError(res, 401, 'Nieprawidłowy lub brak nagłówka X-Proxy-Key');
+    return;
+  }
+  res.json({ ok: true, service: 'proxy' });
 });
 
 forwardRouter.post('/forward', async (req, res) => {

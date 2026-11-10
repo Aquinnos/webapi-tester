@@ -1,9 +1,11 @@
 import express, { type Express, type Request, type Response } from 'express';
 import { agentKey, config } from './config.js';
 import { forwardRouter } from './routes/forward.js';
+import { corsMiddleware } from './services/cors.js';
 
 function build(): Express {
   const app = express();
+  app.use(corsMiddleware);
   app.use(express.json({ limit: '10mb' }));
 
   app.get('/health', (_req: Request, res: Response) => {

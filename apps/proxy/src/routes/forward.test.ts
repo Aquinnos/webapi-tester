@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import express from 'express';
 import request from 'supertest';
 import { forwardRouter } from './forward.js';
+import { corsMiddleware } from '../services/cors.js';
 import { config } from '../config.js';
 
 const VALID_KEY = config.PROXY_SHARED_SECRET;
@@ -44,6 +45,7 @@ const PAYLOAD = {
 
 beforeEach(() => {
   app = express();
+  app.use(corsMiddleware);
   app.use(express.json());
   app.use('/', forwardRouter);
   lastArgs = [];
@@ -79,6 +81,37 @@ describe('autoryzacja kluczem wspoldzielonym (WNF1)', () => {
       .send(PAYLOAD);
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('endpoint sesji agenta', () => {
+  it('odrzuca probe bez naglowka X-Proxy-Key', async () => {
+    const res = await request(app).get('/session');
+    expect(res.status).toBe(401);
+  });
+
+  it('odrzuca probe z blednym kluczem', async () => {
+    const res = await request(app)
+      .get('/session')
+      .set('X-Proxy-Key', 'wrong-key-wrong-key');
+    expect(res.status).toBe(401);
+  });
+
+  it('potwierdza poprawny klucz bez zadania do celu', async () => {
+    mockUpstream('{}');
+    const res = await request(app).get('/session').set('X-Proxy-Key', VALID_KEY);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('obsluguje preflight OPTIONS', async () => {
+    const res = await request(app)
+      .options('/session')
+      .set('Origin', 'http://localhost:5173')
+      .set('Access-Control-Request-Method', 'GET');
+    expect(res.status).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe('*');
   });
 });
 
