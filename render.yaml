@@ -1,0 +1,32 @@
+# Wdrożenie aplikacji WebAPI Tester na Render (Blueprint).
+# Uruchomienie: "New > Blueprint" w panelu Render, wskazanie tego repozytorium.
+# Wymagane zmienne środowiskowe: POSTGRES_URL (Neon) oraz opcjonalnie WEB_ORIGIN.
+services:
+  - type: web
+    name: webapi-tester
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @webapi-tester/server build && pnpm --filter @webapi-tester/web build
+    startCommand: node apps/server/dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 20.12.0
+      - key: NODE_ENV
+        value: production
+      # Wolny plan Render daje 0,1 CPU, a bcrypt w czystym JavaScript jest
+      # wtedy zauważalnie wolniejszy, więc obniżamy koszt hashowania.
+      - key: BCRYPT_COST
+        value: '10'
+      # Adres bazy z Neon, np.
+      # postgresql://USER:PASSWORD@ep-xxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
+      - key: POSTGRES_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      # Opcjonalna lista originów frontu dopuszczanych przez CORS.
+      # Przy serwowaniu frontu z tego samego adresu można ją pominąć.
+      - key: WEB_ORIGIN
+        sync: false
