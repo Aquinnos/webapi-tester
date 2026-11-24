@@ -1,6 +1,6 @@
 # WebAPI Tester
 
-Webowy tester interfejsów REST API z lokalnym agentem proxy i modułem importu specyfikacji OpenAPI. Projekt pracy inżynierskiej realizowanej na Wydziale Elektrycznym UMG.
+Webowy tester interfejsów REST API z lokalnym serwer proxy i modułem importu specyfikacji OpenAPI. Projekt pracy inżynierskiej realizowanej na Wydziale Elektrycznym UMG.
 
 ## Architektura
 
@@ -10,7 +10,7 @@ Monorepo z trzema procesami uruchamianymi równolegle:
 | --- | --- | --- | --- |
 | Klient webowy | `apps/web` | 5173 | Vite + React + TypeScript + Tailwind |
 | Backend aplikacji | `apps/server` | 3001 | Node.js + Express + TypeScript + PostgreSQL |
-| Lokalny agent proxy | `apps/proxy` | 3002 | Node.js + Express + TypeScript |
+| Lokalny serwer proxy | `apps/proxy` | 3002 | Node.js + Express + TypeScript |
 
 Współdzielone typy DTO w `packages/shared`.
 
@@ -32,32 +32,32 @@ pnpm dev
 
 Aplikacja webowa: `http://localhost:5173`
 Backend API: `http://localhost:3001`
-Lokalny agent proxy: `http://localhost:3002`
+Lokalny serwer proxy: `http://localhost:3002`
 
-## Lokalny agent proxy
+## Lokalny serwer proxy
 
-Agent proxy przekazuje żądania z aplikacji webowej do wskazanego adresu docelowego i dołącza nagłówki CORS, dzięki którym przeglądarka może odczytać odpowiedź. Jest uruchamiany ręcznie i nie startuje automatycznie wraz z systemem.
+Serwer proxy przekazuje żądania z aplikacji webowej do wskazanego adresu docelowego i dołącza nagłówki CORS, dzięki którym przeglądarka może odczytać odpowiedź. Jest uruchamiany ręcznie i nie startuje automatycznie wraz z systemem.
 
-Agent jest opcjonalny. Aplikacja wysyła żądania wprost z przeglądarki, a agent jest potrzebny wtedy, gdy serwer docelowy nie udostępnia nagłówków CORS albo gdy testowany API działa na `localhost` albo w sieci lokalnej.
+Serwer jest opcjonalny. Aplikacja wysyła żądania wprost z przeglądarki, a serwer jest potrzebny wtedy, gdy serwer docelowy nie udostępnia nagłówków CORS albo gdy testowany API działa na `localhost` albo w sieci lokalnej.
 
 ### Tryby wysyłania żądań
 
-Tryb wybiera się w interfejsie (przycisk **Agent proxy** w pasku u góry):
+Tryb wybiera się w interfejsie (przycisk **Serwer proxy** w pasku u góry):
 
 | Tryb | Zachowanie |
 | --- | --- |
-| Agent, gdy jest dostępny | Żądanie idzie przez agenta, a gdy agent nie odpowiada, aplikacja próbuje wysłać je wprost z przeglądarki |
-| Zawsze przez agenta | Żądanie idzie wyłącznie przez agenta; brak agenta kończy się czytelnym komunikatem |
-| Zawsze bezpośrednio z przeglądarki | Agent nie jest w ogóle używany |
+| Serwer, gdy jest dostępny | Żądanie idzie przez serwer, a gdy serwer nie odpowiada, aplikacja próbuje wysłać je wprost z przeglądarki |
+| Zawsze przez serwer | Żądanie idzie wyłącznie przez serwer; brak serwer kończy się czytelnym komunikatem |
+| Zawsze bezpośrednio z przeglądarki | Serwer nie jest w ogóle używany |
 
-Adres agenta oraz klucz współdzielony wkleja się w tym samym panelu. Klucz można też ustawić w pliku `.env` (zmienne `VITE_PROXY_URL` i `VITE_PROXY_SHARED_SECRET`), a wtedy nie trzeba go wklejać przy każdym uruchomieniu. Ustawienia zapisane w przeglądarce mają pierwszeństwo.
+Adres serwer oraz klucz współdzielony wkleja się w tym samym panelu. Klucz można też ustawić w pliku `.env` (zmienne `VITE_PROXY_URL` i `VITE_PROXY_SHARED_SECRET`), a wtedy nie trzeba go wklejać przy każdym uruchomieniu. Ustawienia zapisane w przeglądarce mają pierwszeństwo.
 
-Przycisk **Agent proxy** pokazuje stan połączenia: zielona kropka oznacza agenta działającego z poprawnym kluczem, bursztynowa błędny klucz, szara brak klucza, czerwona brak odpowiedzi agenta.
+Przycisk **Serwer proxy** pokazuje stan połączenia: zielona kropka oznacza serwer działającego z poprawnym kluczem, bursztynowa błędny klucz, szara brak klucza, czerwona brak odpowiedzi serwera.
 
 ### Uruchomienie w kontenerze
 
 ```bash
-# Buduje obraz z repozytorium i uruchamia agenta
+# Buduje obraz z repozytorium i uruchamia serwer
 docker compose up -d proxy
 
 # Klucz współdzielony wypisuje się w logach
@@ -76,22 +76,22 @@ docker run --rm -p 127.0.0.1:3002:3002 ghcr.io/aquinnos/webapi-tester-agent:late
 # Jednorazowa instalacja zależności (w katalogu głównym repozytorium)
 pnpm install
 
-# Uruchomienie samego agenta
+# Uruchomienie samego serwera
 pnpm --filter @webapi-tester/proxy dev
 ```
 
-Agent nasłuchuje na porcie `3002` (zmienny przez `PROXY_PORT`) i na adresie `127.0.0.1` (zmiennym przez `PROXY_BIND_HOST`; wewnątrz kontenera ustawianym na `0.0.0.0`, przy czym port jest publikowany wyłącznie na `127.0.0.1` hosta). Przyjmuje wyłącznie żądania zawierające nagłówek `X-Proxy-Key` zgodny z kluczem współdzielonym; niezgodny lub brakujący nagłówek kończy się odpowiedzią 401. Obsługuje metody `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` i `HEAD` oraz ciała binarne.
+Serwer nasłuchuje na porcie `3002` (zmienny przez `PROXY_PORT`) i na adresie `127.0.0.1` (zmiennym przez `PROXY_BIND_HOST`; wewnątrz kontenera ustawianym na `0.0.0.0`, przy czym port jest publikowany wyłącznie na `127.0.0.1` hosta). Przyjmuje wyłącznie żądania zawierające nagłówek `X-Proxy-Key` zgodny z kluczem współdzielonym; niezgodny lub brakujący nagłówek kończy się odpowiedzią 401. Obsługuje metody `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS` i `HEAD` oraz ciała binarne.
 
-Agent udostępnia dwa endpointy pomocnicze: `GET /health` sprawdza, czy agent odpowiada, a `GET /session` z nagłówkiem `X-Proxy-Key` sprawdza, czy klucz jest prawidłowy. Oba zwracają nagłówki CORS, więc przeglądarka może je odczytać.
+Serwer udostępnia dwa endpointy pomocnicze: `GET /health` sprawdza, czy serwer odpowiada, a `GET /session` z nagłówkiem `X-Proxy-Key` sprawdza, czy klucz jest prawidłowy. Oba zwracają nagłówki CORS, więc przeglądarka może je odczytać.
 
 ### Klucz współdzielony
 
-Gdy zmienna `PROXY_SHARED_SECRET` jest ustawiona, agent używa jej jako klucza. Gdy jej nie ma, agent generuje losowy klucz przy pierwszym uruchomieniu, zapisuje go w pliku `PROXY_KEY_FILE` (domyślnie `.webapi-tester-agent-key`) i wypisuje go w logu startowym. Klucz trzeba wkleić w aplikacji webowej w panelu agenta, dlatego nie trafia on do publicznego pakietu aplikacji webowej.
+Gdy zmienna `PROXY_SHARED_SECRET` jest ustawiona, serwer używa jej jako klucza. Gdy jej nie ma, serwer generuje losowy klucz przy pierwszym uruchomieniu, zapisuje go w pliku `PROXY_KEY_FILE` (domyślnie `.webapi-tester-agent-key`) i wypisuje go w logu startowym. Klucz trzeba wkleić w aplikacji webowej w panelu serwera, dlatego nie trafia on do publicznego pakietu aplikacji webowej.
 
 ## Testy
 
 ```bash
-# Wszystkie testy (serwer + agent + aplikacja webowa)
+# Wszystkie testy (backend + serwer proxy + aplikacja webowa)
 pnpm test
 
 # Testy z pomiarem pokrycia kodu
