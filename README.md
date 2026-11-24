@@ -1,6 +1,6 @@
 # WebAPI Tester
 
-Webowy tester interfejsów REST API z lokalnym agentem proxy i modułem importu specyfikacji OpenAPI. Prototyp pracy inżynierskiej realizowanej na Wydziale Elektrycznym UMG.
+Webowy tester interfejsów REST API z lokalnym agentem proxy i modułem importu specyfikacji OpenAPI. Projekt pracy inżynierskiej realizowanej na Wydziale Elektrycznym UMG.
 
 ## Architektura
 
